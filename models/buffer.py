@@ -13,8 +13,7 @@ class Buffer:
         self.bytearray_.extend(to_varint(num))
     
     def consume_varint(self) -> int:
-        num = consume_varint(self.bytearray_)
-        del self.bytearray_[:]
+        num = from_varint(self.bytearray_)
         return num
     
     def add_string(self, string: str):
