@@ -30,7 +30,9 @@ class Buffer:
         
         self.bytearray_.extend(unsigned_short.to_bytes(2))
         
-        # TODO consume unsigned short
+    def consume_unsigned_short(self) -> int:
+        short = self.consume_raw(2)
+        return int.from_bytes(short)
     
         
         

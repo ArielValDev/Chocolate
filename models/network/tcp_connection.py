@@ -1,6 +1,7 @@
 import socket
 from constants.constants import *
 from utils.protocol_type_utils import from_varint
+from buffer import Buffer
 
 class TCPConnection:
     def __init__(self, addr: str, socket: socket.socket):
@@ -15,14 +16,19 @@ class TCPConnection:
     def recv(self, size: int) -> bytes:
         return self.socket.recv(size)
     
-    def get_message(self):
+    def recv_mc_packet(self) -> tuple[int, Buffer]:
+        """
+        returns packet id and the data
+        """
+
         size = bytearray()
         while True:
             byte = self.socket.recv(1) # The varint of the length of message
-            if (int.from_bytes(byte) & CONTINUE_BIT) == 0: break
+            if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
             size.extend(byte)
         
-        msg = self.socket.recv(from_varint(size))
-        return msg
+        msg = Buffer(self.socket.recv(from_varint(size)))
+        packet_id = msg.consume_varint()
+        return packet_id, msg
             
         

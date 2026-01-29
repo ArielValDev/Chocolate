@@ -7,11 +7,11 @@ def to_varint(num: int) -> bytearray:
     num &= 0xFFFFFFFF
 
     while True:
-        if (num & ~SEGMENT_BITS) == 0:
+        if (num & ~VARINT_SEGMENT_BITS) == 0:
             bytes_ += num.to_bytes(1, byteorder="little")
             break
 
-        bytes_ += ((num & SEGMENT_BITS) | CONTINUE_BIT).to_bytes(1, byteorder="little")
+        bytes_ += ((num & VARINT_SEGMENT_BITS) | VARINT_CONTINUE_BIT).to_bytes(1, byteorder="little")
 
         num >>= 7
 
@@ -23,9 +23,9 @@ def from_varint(bytearay_: bytearray):
     pos = 0
     while True:
         current_byte = bytearay_.pop()
-        value |= (current_byte & SEGMENT_BITS) << pos
+        value |= (current_byte & VARINT_SEGMENT_BITS) << pos
         
-        if (current_byte & CONTINUE_BIT) == 0: break
+        if (current_byte & VARINT_CONTINUE_BIT) == 0: break
         
         pos += 7
         if(pos >= 32):
