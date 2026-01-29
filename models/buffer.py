@@ -1,3 +1,4 @@
+from uuid import UUID
 from utils.protocol_type_utils import *
 
 class Buffer:
@@ -33,6 +34,11 @@ class Buffer:
     def consume_unsigned_short(self) -> int:
         short = self.consume_raw(2)
         return int.from_bytes(short)
+    
+    # TODO add uuid
+
+    def consume_uuid(self) -> UUID:
+        pass
     
         
         
