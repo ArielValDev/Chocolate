@@ -1,5 +1,4 @@
-SEGMENT_BITS = 0x7F
-CONTINUE_BIT = 0x80
+from constants.constants import *
 
 def to_varint(num: int) -> bytearray:
     bytes_ = b""
@@ -8,25 +7,25 @@ def to_varint(num: int) -> bytearray:
     num &= 0xFFFFFFFF
 
     while True:
-        if (num & ~SEGMENT_BITS) == 0:
+        if (num & ~VARINT_SEGMENT_BITS) == 0:
             bytes_ += num.to_bytes(1, byteorder="little")
             break
 
-        bytes_ += ((num & SEGMENT_BITS) | CONTINUE_BIT).to_bytes(1, byteorder="little")
+        bytes_ += ((num & VARINT_SEGMENT_BITS) | VARINT_CONTINUE_BIT).to_bytes(1, byteorder="little")
 
         num >>= 7
 
     return bytearray(bytes_)
 
 
-def consume_varint(bytearay_: bytearray):
+def from_varint(bytearay_: bytearray):
     value = 0
     pos = 0
     while True:
-        currentByte = bytearay_.pop()
-        value |= (currentByte & SEGMENT_BITS) << pos
+        current_byte = bytearay_.pop()
+        value |= (current_byte & VARINT_SEGMENT_BITS) << pos
         
-        if (currentByte & CONTINUE_BIT) == 0: break
+        if (current_byte & VARINT_CONTINUE_BIT) == 0: break
         
         pos += 7
         if(pos >= 32):
