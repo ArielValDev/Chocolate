@@ -1,5 +1,5 @@
 #from chocolate import ChocolateServer
-from utils.protocol_type_utils import to_varint, from_varint
+from utils.protocol_type_utils import to_varint, consume_varint
 
 def main():
     # chocolate_server = ChocolateServer() 
@@ -9,7 +9,7 @@ def main():
     # #chocolate_server.shutdown()
     a = to_varint(-1)
     print(a.hex())
-    print(from_varint(bytearray(a)))
+    print(consume_varint(bytearray(a)))
     
 
 if __name__ == "__main__":

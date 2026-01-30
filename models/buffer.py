@@ -1,4 +1,5 @@
 from utils.protocol_type_utils import *
+from uuid import UUID
 
 class Buffer:
     def __init__(self, bytearray_: bytearray):
@@ -14,7 +15,7 @@ class Buffer:
     
     def consume_varint(self) -> int:
         num = consume_varint(self.bytearray_)
-        del self.bytearray_[:]
+        #del self.bytearray_[:] i dont think its neccasserry
         return num
     
     def add_string(self, string: str):
@@ -30,8 +31,52 @@ class Buffer:
             raise ValueError("unsigned short must be within 0-65535")
         
         self.bytearray_.extend(unsigned_short.to_bytes(2))
+    
+    def consume_unsigned_short(self) -> int:
+        short = self.consume_raw(2)
+        return int.from_bytes(short)
+    
+    def add_uuid(self, uuid: UUID):
+        self.bytearray_.extend(uuid.bytes)
+
+    def consume_uuid(self) -> UUID:
+        uuid = self.bytearray_[:16]
+        self.bytearray_ = self.bytearray_[16:]
+        return UUID(uuid.hex())
+    
+    def add_prefixed_string_array(self, array_: list[str]):
+        length = 0
+        for var in array_:
+            length += len(to_varint(len(var)))
+            length += len(var)
         
-        # TODO consume unsigned short
+        self.add_varint(length)
+        for var in array_:
+            self.add_string(var)
+
+    def consume_prefixed_string_array(self) -> list[str]:
+        length = self.consume_varint()
+        to_return = []
+
+        while length:
+            var = self.consume_varint()
+
+
+
+
+
+    def add_game_profile(self, uuid: UUID, username: str, properties: list[str]):
+        self.add_uuid(uuid)
+        self.add_string(username)
+        self.add_prefixed_string_array(properties)
+
+    def consume_game_profile(self):
+        uuid = self.consume_uuid()
+        username = self.consume_string()
+
+
+
+
     
         
         
