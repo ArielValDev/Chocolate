@@ -1,6 +1,6 @@
 import socket
 from constants.constants import *
-from utils.protocol_type_utils import from_varint
+from utils.protocol_type_utils import from_varint, to_varint
 from buffer import Buffer
 
 class TCPConnection:
@@ -27,8 +27,10 @@ class TCPConnection:
             if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
             size.extend(byte)
         
-        msg = Buffer(self.socket.recv(from_varint(size)))
+        msg = Buffer(bytearray(self.socket.recv(from_varint(size))))
         packet_id = msg.consume_varint()
         return packet_id, msg
-            
-        
+    
+    def send_mc_packet(self, buffer: Buffer, packet_id: int):
+        all_data = to_varint(packet_id) + buffer.get_bytes()
+        self.send(bytes(to_varint(len(all_data))) + all_data)

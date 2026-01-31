@@ -6,6 +6,9 @@ class Buffer:
     def __init__(self, bytearray_: bytearray):
         self.bytearray_ = bytearray_
     
+    def get_bytes(self) -> bytes:
+        return bytes(self.bytearray_)
+    
     def consume_raw(self, length: int) -> bytearray:
         bytearray_ = self.bytearray_[:length]
         self.bytearray_ = self.bytearray_[length:]
@@ -56,14 +59,15 @@ class Buffer:
 
     def consume_prefixed_string_array(self) -> list[str]:
         length = self.consume_varint()
-        to_return = []
+        to_return: list[str] = []
 
-        while length:
-            var = self.consume_varint()
-
-
-
-
+        while length != 0:
+            curr = self.consume_string()
+            to_return.append(curr)
+            curr_len = len(curr)
+            length -= (curr_len + len(to_varint(curr_len))) # TODO: Find better solution
+        
+        return to_return
 
     def add_game_profile(self, uuid: UUID, username: str, properties: list[str]):
         self.add_uuid(uuid)
@@ -73,10 +77,6 @@ class Buffer:
     def consume_game_profile(self):
         uuid = self.consume_uuid()
         username = self.consume_string()
-
-
-
-
+        properties = self.consume_prefixed_string_array()
+        return uuid, username, properties
     
-        
-        
