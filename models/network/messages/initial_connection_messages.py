@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from tcp_connection import TCPConnection
 from constants.network import *
 from uuid import UUID
+from buffer import Buffer
+from utils import network_utils
 
 @dataclass
 class HandshakepacketData:
@@ -38,4 +40,7 @@ def handle_message_login(conn: TCPConnection, state: ConnectionState) -> LoginPa
     )
 
 def handle_message_login_success(conn: TCPConnection, uuid: UUID, username: str):
-
+    login_success_msg = Buffer()
+    login_success_msg.add_varint(LoginStatePacketID.Login_Success.value)
+    properties = network_utils.fetch_player_properties(uuid)
+    login_success_msg.add_game_profile(uuid, username, properties)

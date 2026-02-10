@@ -3,7 +3,7 @@ from utils.protocol_type_utils import *
 from uuid import UUID
 
 class Buffer:
-    def __init__(self, bytearray_: bytearray):
+    def __init__(self, bytearray_: bytearray = bytearray()):
         self.bytearray_ = bytearray_
     
     def get_bytes(self) -> bytes:
@@ -14,6 +14,9 @@ class Buffer:
         self.bytearray_ = self.bytearray_[length:]
         return bytearray_
     
+    def add_raw(self, bytearray_: bytearray):
+        self.bytearray_.extend(bytearray_)
+    
     def add_varint(self, num: int):
         self.bytearray_.extend(to_varint(num))
     
@@ -21,7 +24,8 @@ class Buffer:
         num = from_varint(self.bytearray_)
         return num
     
-    def add_string(self, string: str):
+    def add_string(self, string: str, max_size: int = -1):
+        if max_size != -1 and len(string) > max_size: raise Exception("Length of string exceeds the maximum length")
         self.bytearray_.extend(to_varint(len(string)))
         self.bytearray_.extend(string.encode("UTF-8"))
         
@@ -69,10 +73,10 @@ class Buffer:
         
         return to_return
 
-    def add_game_profile(self, uuid: UUID, username: str, properties: list[str]):
+    def add_game_profile(self, uuid: UUID, username: str, properties: list[tuple[str, str]]):
         self.add_uuid(uuid)
         self.add_string(username)
-        self.add_prefixed_string_array(properties)
+        self.add_prefixed_string_array([*[p[0], p[1], None] for p in properties])
 
     def consume_game_profile(self):
         uuid = self.consume_uuid()
@@ -80,3 +84,18 @@ class Buffer:
         properties = self.consume_prefixed_string_array()
         return uuid, username, properties
     
+    def add_optional_string(self, string: str | None):
+        if string is None:
+            self.add_raw(bytearray([0]))
+            return
+            
+        self.add_raw(bytearray([1]))
+        self.add_string(string)
+        
+    def add_prefixed_optional_string(self, string: str | None):
+        if string is None:
+            self.add_raw(bytearray([1,0]))
+            return
+        
+        self.add_raw(bytearray([1 + len(to_varint(len(string)))]))
+        self.add_string(string)
