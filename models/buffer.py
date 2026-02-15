@@ -2,6 +2,10 @@ from uuid import UUID
 from utils.protocol_type_utils import *
 from uuid import UUID
 
+class OptionalString:
+    def __init__(self, s: str | None):
+        self.s = s
+
 class Buffer:
     def __init__(self, bytearray_: bytearray = bytearray()):
         self.bytearray_ = bytearray_
@@ -51,22 +55,32 @@ class Buffer:
         self.bytearray_ = self.bytearray_[16:]
         return UUID(uuid.hex())
     
-    def add_prefixed_string_array(self, array_: list[str]):
+    def add_prefixed_string_array(self, array_: list[str | OptionalString]):
         length = 0
         for var in array_:
-            length += len(to_varint(len(var)))
-            length += len(var)
+            if var is OptionalString:
+                length += 1 + len(to_varint(len(var.s))) + len(var.s)
+            elif var is str:
+                length += len(to_varint(len(var)))
+                length += len(var)
         
         self.add_varint(length)
         for var in array_:
-            self.add_string(var)
+            if var is OptionalString:
+                self.add_prefixed_optional_string(var.s)
+            elif var is str:
+                self.add_string(var)
 
     def consume_prefixed_string_array(self) -> list[str]:
         length = self.consume_varint()
         to_return: list[str] = []
 
         while length != 0:
-            curr = self.consume_string()
+            if self.bytearray_[0] == 0x00 or 0x01:
+                curr = self.consume_prefixed_optional_string()
+            else:
+                curr = self.consume_string()
+            if curr is None: continue
             to_return.append(curr)
             curr_len = len(curr)
             length -= (curr_len + len(to_varint(curr_len))) # TODO: Find better solution
@@ -76,7 +90,8 @@ class Buffer:
     def add_game_profile(self, uuid: UUID, username: str, properties: list[tuple[str, str]]):
         self.add_uuid(uuid)
         self.add_string(username)
-        self.add_prefixed_string_array([*[p[0], p[1], None] for p in properties])
+        
+        self.add_prefixed_string_array([prop for t in properties for prop in t]) # tuple flattening
 
     def consume_game_profile(self):
         uuid = self.consume_uuid()
@@ -99,3 +114,9 @@ class Buffer:
         
         self.add_raw(bytearray([1 + len(to_varint(len(string)))]))
         self.add_string(string)
+        
+    def consume_prefixed_optional_string(self):
+        exists = self.consume_raw(1)
+        if exists:
+            return self.consume_string()
+        
