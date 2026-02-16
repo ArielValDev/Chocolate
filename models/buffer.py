@@ -55,20 +55,25 @@ class Buffer:
         self.bytearray_ = self.bytearray_[16:]
         return UUID(uuid.hex())
     
-    def add_prefixed_string_array(self, array_: list[str | OptionalString]):
-        length = 0
-        for var in array_:
-            if var is OptionalString:
-                length += 1 + len(to_varint(len(var.s))) + len(var.s)
-            elif var is str:
-                length += len(to_varint(len(var)))
-                length += len(var)
+    def add_prefixed_string_array(self, array_: list[str | OptionalString], length: int = 0):
+        if length == 0:
+            length = len(array_) 
+        # length = 0
+        # for var in array_:
+        #     if isinstance(var, OptionalString):
+        #         length += 1 
+        #         if var.s is not None:
+        #             length += len(to_varint(len(var.s))) + len(var.s)
+        #     else:
+        #         length += len(to_varint(len(var)))
+        #         length += len(var)
         
         self.add_varint(length)
         for var in array_:
-            if var is OptionalString:
+            print(var)
+            if isinstance(var, OptionalString):
                 self.add_prefixed_optional_string(var.s)
-            elif var is str:
+            else:
                 self.add_string(var)
 
     def consume_prefixed_string_array(self) -> list[str]:
@@ -87,11 +92,10 @@ class Buffer:
         
         return to_return
 
-    def add_game_profile(self, uuid: UUID, username: str, properties: list[tuple[str, str]]):
+    def add_game_profile(self, uuid: UUID, username: str, properties: list[tuple[str, str, OptionalString]]):
         self.add_uuid(uuid)
-        self.add_string(username)
-        
-        self.add_prefixed_string_array([prop for t in properties for prop in t]) # tuple flattening
+        self.add_string(username)        
+        self.add_prefixed_string_array([prop for t in properties for prop in t], len(properties)) # tuple flattening
 
     def consume_game_profile(self):
         uuid = self.consume_uuid()
@@ -100,22 +104,21 @@ class Buffer:
         return uuid, username, properties
     
     def add_optional_string(self, string: str | None):
-        if string is None:
-            self.add_raw(bytearray([0]))
-            return
-            
-        self.add_raw(bytearray([1]))
+        if string is None: return
         self.add_string(string)
+
+    def consume_optional_string(self) -> str:
+        return self.consume_string()
         
     def add_prefixed_optional_string(self, string: str | None):
         if string is None:
-            self.add_raw(bytearray([1,0]))
+            self.add_raw(bytearray([0]))
             return
         
-        self.add_raw(bytearray([1 + len(to_varint(len(string)))]))
+        self.add_raw(bytearray([1]))
         self.add_string(string)
         
-    def consume_prefixed_optional_string(self):
+    def consume_prefixed_optional_string(self) -> str | None:
         exists = self.consume_raw(1)
         if exists:
             return self.consume_string()

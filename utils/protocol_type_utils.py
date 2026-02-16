@@ -22,7 +22,7 @@ def from_varint(bytearay_: bytearray):
     value = 0
     pos = 0
     while True:
-        current_byte = bytearay_.pop()
+        current_byte = bytearay_.pop(0)
         value |= (current_byte & VARINT_SEGMENT_BITS) << pos
         
         if (current_byte & VARINT_CONTINUE_BIT) == 0: break
