@@ -55,22 +55,11 @@ class Buffer:
         self.bytearray_ = self.bytearray_[16:]
         return UUID(uuid.hex())
     
-    def add_prefixed_string_array(self, array_: list[str | OptionalString], length: int = 0):
-        if length == 0:
-            length = len(array_) 
-        # length = 0
-        # for var in array_:
-        #     if isinstance(var, OptionalString):
-        #         length += 1 
-        #         if var.s is not None:
-        #             length += len(to_varint(len(var.s))) + len(var.s)
-        #     else:
-        #         length += len(to_varint(len(var)))
-        #         length += len(var)
+    def add_prefixed_string_array(self, array_: list[tuple[str | OptionalString, ...]]):
+        length = len(array_)
         
         self.add_varint(length)
-        for var in array_:
-            print(var)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
             if isinstance(var, OptionalString):
                 self.add_prefixed_optional_string(var.s)
             else:
@@ -95,7 +84,7 @@ class Buffer:
     def add_game_profile(self, uuid: UUID, username: str, properties: list[tuple[str, str, OptionalString]]):
         self.add_uuid(uuid)
         self.add_string(username)        
-        self.add_prefixed_string_array([prop for t in properties for prop in t], len(properties)) # tuple flattening
+        self.add_prefixed_string_array(properties)
 
     def consume_game_profile(self):
         uuid = self.consume_uuid()

@@ -14,6 +14,9 @@ class HandshakepacketData:
     intent: int
 
 def handle_message_handshake(conn: TCPConnection, state: ConnectionState) -> HandshakepacketData:
+    """
+    Incoming
+    """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != HandshakingStatePacketID.Handshake.value or state != ConnectionState.Handshaking:
         raise ConnectionError("Unexpected packet ID or state for handshake")
@@ -31,9 +34,12 @@ class LoginPacketData:
     uuid: UUID
 
 def handle_message_login(conn: TCPConnection, state: ConnectionState) -> LoginPacketData:
+    """
+    Incoming
+    """
     packet_id, buf = conn.recv_mc_packet()
-    if packet_id != HandshakingStatePacketID.Handshake.value or state != ConnectionState.Handshaking:
-        raise ConnectionError("Unexpected packet ID or state for handshake")
+    if packet_id != LoginStatePacketID.LoginStart.value or state != ConnectionState.Login:
+        raise ConnectionError("Unexpected packet ID or state for login")
     
     return LoginPacketData(
         username=buf.consume_string(),
@@ -41,8 +47,24 @@ def handle_message_login(conn: TCPConnection, state: ConnectionState) -> LoginPa
     )
 
 def handle_message_login_success(conn: TCPConnection, uuid: UUID, username: str):
+    """
+    Outgoing
+    """
     login_success_msg = Buffer()
     properties = network_utils.fetch_player_properties(uuid)
     login_success_msg.add_game_profile(uuid, username, properties)
 
-    conn.send_mc_packet(login_success_msg, network.LoginStatePacketID.Login_Success.value)
+    conn.send_mc_packet(login_success_msg, network.LoginStatePacketID.LoginSuccess.value)
+    
+def handle_message_login_ack(conn: TCPConnection, state: ConnectionState):
+    """
+    Incoming
+    """
+    packet_id, _ = conn.recv_mc_packet()
+    if packet_id != LoginStatePacketID.LoginAck.value or state != ConnectionState.Login:
+        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
+    
+def handle_message_registry_data(conn: TCPConnection, state: ConnectionState):
+    registry_data_msg = Buffer()
+    
+    

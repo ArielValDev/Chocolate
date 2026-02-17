@@ -8,4 +8,9 @@ class HandshakingStatePacketID(Enum):
     Handshake = 0x00
     
 class LoginStatePacketID(Enum):
-    Login_Success = 0x02
+    LoginStart = 0x00
+    LoginSuccess = 0x02
+    LoginAck = 0x03
+    
+class ConfigurationStatePacketID(Enum):
+    RegistryData = 0x07

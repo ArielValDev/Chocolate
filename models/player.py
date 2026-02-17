@@ -13,6 +13,7 @@ class Player:
     def connect_to_world(self):
         handle_message_handshake(self.conn, self.connection_state)
         
+        self.connection_state = ConnectionState.Login
         user_data = handle_message_login(self.conn, self.connection_state)
         self.username = user_data.username
         self.uuid = user_data.uuid

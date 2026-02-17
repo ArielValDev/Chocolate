@@ -1,7 +1,5 @@
 from chocolate import ChocolateServer
-from uuid import UUID
 #from utils.protocol_type_utils import to_varint, from_varint
-from utils.network_utils import fetch_player_properties
 
 def main():
     chocolate_server = ChocolateServer() 
