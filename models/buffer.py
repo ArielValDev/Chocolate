@@ -1,4 +1,5 @@
 from uuid import UUID
+from constants import constants
 from utils.protocol_type_utils import *
 from uuid import UUID
 
@@ -7,7 +8,8 @@ class OptionalString:
         self.s = s
 
 class Buffer:
-    def __init__(self, bytearray_: bytearray = bytearray()):
+    def __init__(self, bytearray_: bytearray | None = None):
+        if bytearray_ is None: bytearray_ = bytearray()
         self.bytearray_ = bytearray_
     
     def get_bytes(self) -> bytes:
@@ -27,6 +29,12 @@ class Buffer:
     def consume_varint(self) -> int:
         num = from_varint(self.bytearray_)
         return num
+    
+    def add_boolean(self, boolian: int):
+        self.bytearray_.extend(boolian.to_bytes(1))
+
+    def consume_boolean(self) -> bool:
+        return True if int.from_bytes(self.consume_raw(1)) == 1 else False
     
     def add_string(self, string: str, max_size: int = -1):
         if max_size != -1 and len(string) > max_size: raise Exception("Length of string exceeds the maximum length")
@@ -70,7 +78,7 @@ class Buffer:
         to_return: list[str] = []
 
         while length != 0:
-            if self.bytearray_[0] == 0x00 or 0x01:
+            if self.bytearray_[0] == NULL or 0x01:
                 curr = self.consume_prefixed_optional_string()
             else:
                 curr = self.consume_string()
@@ -101,14 +109,14 @@ class Buffer:
         
     def add_prefixed_optional_string(self, string: str | None):
         if string is None:
-            self.add_raw(bytearray([0]))
+            self.add_boolean(constants.NULL)
             return
         
-        self.add_raw(bytearray([1]))
+        self.add_boolean(0x01)
         self.add_string(string)
         
     def consume_prefixed_optional_string(self) -> str | None:
-        exists = self.consume_raw(1)
+        exists = self.consume_boolean()
         if exists:
             return self.consume_string()
         

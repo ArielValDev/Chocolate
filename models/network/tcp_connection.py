@@ -21,7 +21,6 @@ class TCPConnection:
         """
         returns packet id and the data
         """
-
         size = bytearray()
         while True:
             byte = self.socket.recv(1) # The varint of the length of message

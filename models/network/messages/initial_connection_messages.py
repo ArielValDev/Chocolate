@@ -1,27 +1,29 @@
+from typing import Any
 from dataclasses import dataclass
 from constants import network
+from constants import constants
 from models.network.tcp_connection import TCPConnection
-from constants.network import *
 from uuid import UUID
-from models.buffer import Buffer
+from models.buffer import Buffer, OptionalString
 from utils import network_utils
+from utils.logger import Logger
 
 @dataclass
-class HandshakepacketData:
+class HandshakePacketData:
     protocol_version: int
     server_address: str
     port: int
     intent: int
 
-def handle_message_handshake(conn: TCPConnection, state: ConnectionState) -> HandshakepacketData:
+def handle_message_handshake(conn: TCPConnection, state: network.ConnectionState) -> HandshakePacketData:
     """
     Incoming
     """
     packet_id, buf = conn.recv_mc_packet()
-    if packet_id != HandshakingStatePacketID.Handshake.value or state != ConnectionState.Handshaking:
+    if packet_id != network.HandshakingStatePacketID.Handshake.value or state != network.ConnectionState.Handshaking:
         raise ConnectionError("Unexpected packet ID or state for handshake")
     
-    return HandshakepacketData(
+    return HandshakePacketData(
         protocol_version=buf.consume_varint(),
         server_address=buf.consume_string(),
         port=buf.consume_unsigned_short(),
@@ -33,12 +35,12 @@ class LoginPacketData:
     username: str
     uuid: UUID
 
-def handle_message_login(conn: TCPConnection, state: ConnectionState) -> LoginPacketData:
+def handle_message_login(conn: TCPConnection, state: network.ConnectionState) -> LoginPacketData:
     """
     Incoming
     """
     packet_id, buf = conn.recv_mc_packet()
-    if packet_id != LoginStatePacketID.LoginStart.value or state != ConnectionState.Login:
+    if packet_id != network.LoginStatePacketID.LoginStart.value or state != network.ConnectionState.Login:
         raise ConnectionError("Unexpected packet ID or state for login")
     
     return LoginPacketData(
@@ -56,15 +58,83 @@ def handle_message_login_success(conn: TCPConnection, uuid: UUID, username: str)
 
     conn.send_mc_packet(login_success_msg, network.LoginStatePacketID.LoginSuccess.value)
     
-def handle_message_login_ack(conn: TCPConnection, state: ConnectionState):
+def handle_message_login_ack(conn: TCPConnection, state: network.ConnectionState):
     """
     Incoming
     """
     packet_id, _ = conn.recv_mc_packet()
-    if packet_id != LoginStatePacketID.LoginAck.value or state != ConnectionState.Login:
+    if packet_id != network.LoginStatePacketID.LoginAck.value or state != network.ConnectionState.Login:
         raise ConnectionError("Unexpected packet ID or state for login acknowledge")
     
-def handle_message_registry_data(conn: TCPConnection, state: ConnectionState):
-    registry_data_msg = Buffer()
+@dataclass
+class PluginMessagePacketData:
+    channel: str
+    data: Any
+
+def handle_message_plugin_message(conn: TCPConnection, state: network.ConnectionState) -> PluginMessagePacketData:
+    """
+    Incoming
+    """
+    packet_id, buf = conn.recv_mc_packet()
+    if packet_id != network.ConfigurationStatePacketID.PluginMessage.value or state != network.ConnectionState.Configuration:
+        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
     
+    return PluginMessagePacketData(
+        channel = buf.consume_string(),
+        data = buf.get_bytes()
+    )
+
+@dataclass
+class ClientInformationPacketData:
+    locale: str
+    view_distance: int
+    chat_mode: int
+    chat_colors: bool
+    displayed_skin_parts: int
+    main_hand: int
+    enable_text_filtering: bool
+    allow_server_listing: bool
+    particle_status: int
+
+
+def handle_message_client_information(conn: TCPConnection, state: network.ConnectionState) -> ClientInformationPacketData:
+    """
+    Incoming
+    """
+    packet_id, buf = conn.recv_mc_packet()
+    if packet_id != network.ConfigurationStatePacketID.ClientInformation.value or state != network.ConnectionState.Configuration:
+        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
     
+    return ClientInformationPacketData(
+        locale = buf.consume_string(),
+        view_distance = buf.consume_varint(),
+        chat_mode = buf.consume_varint(),
+        chat_colors = buf.consume_boolean(),
+        displayed_skin_parts = buf.consume_varint(),
+        main_hand = buf.consume_varint(),
+        enable_text_filtering = buf.consume_boolean(),
+        allow_server_listing = buf.consume_boolean(),
+        particle_status = buf.consume_varint()
+    )
+    
+def handle_message_registry_data(conn: TCPConnection):
+    """
+    Outgoing
+    """
+    registry_data = network_utils.fetch_registries(constants.REGISTRIES_URL)
+    
+    for reg, entries in registry_data.items():
+        registry_data_msg = Buffer()
+        registry_data_msg.add_string(reg)
+        registry_data_msg.add_prefixed_string_array([(p, OptionalString(None)) for p in entries])
+        conn.send_mc_packet(registry_data_msg, network.ConfigurationStatePacketID.RegistryData.value)
+    
+def handle_message_finish_configuration(conn: TCPConnection):
+    conn.send_mc_packet(Buffer(), network.ConfigurationStatePacketID.FinishConfiguration.value)
+
+def handle_message_ack_finish_configuration(conn: TCPConnection, state: network.ConnectionState):
+    packet_id, _ = conn.recv_mc_packet()
+    if packet_id != network.ConfigurationStatePacketID.FinishConfiguration.value or state != network.ConnectionState.Login:
+        raise ConnectionError("Unexpected packet ID or state for finish configuration")
+    
+# def handle_message_login_play(conn: TCPConnection):

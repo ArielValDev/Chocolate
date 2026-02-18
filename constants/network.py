@@ -3,6 +3,8 @@ from enum import Enum
 class ConnectionState(Enum):
     Handshaking = 0
     Login = 1
+    Configuration = 2
+    Play = 3
 
 class HandshakingStatePacketID(Enum):
     Handshake = 0x00
@@ -13,4 +15,10 @@ class LoginStatePacketID(Enum):
     LoginAck = 0x03
     
 class ConfigurationStatePacketID(Enum):
+    ClientInformation = 0x00
+    PluginMessage = 0x02
+    FinishConfiguration = 0x03
     RegistryData = 0x07
+
+class PlayStatePacketID(Enum):
+    LoginPlay = 0x30
