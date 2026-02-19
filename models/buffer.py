@@ -1,5 +1,5 @@
 from uuid import UUID
-from constants import constants
+from utils.logger import Logger
 from utils.protocol_type_utils import *
 from uuid import UUID
 
@@ -30,8 +30,8 @@ class Buffer:
         num = from_varint(self.bytearray_)
         return num
     
-    def add_boolean(self, boolian: int):
-        self.bytearray_.extend(boolian.to_bytes(1))
+    def add_boolean(self, boolian: bool):
+        self.bytearray_.extend([0x01 if boolian else 0x00])
 
     def consume_boolean(self) -> bool:
         return True if int.from_bytes(self.consume_raw(1)) == 1 else False
@@ -73,19 +73,20 @@ class Buffer:
             else:
                 self.add_string(var)
 
-    def consume_prefixed_string_array(self) -> list[str]:
-        length = self.consume_varint()
+    def consume_prefixed_string_array(self, non_flat_length: int = -1) -> list[str]:
+        flat_length = self.consume_varint()
         to_return: list[str] = []
 
-        while length != 0:
-            if self.bytearray_[0] == NULL or 0x01:
+        while non_flat_length != 1 and flat_length != 0:
+            if self.bytearray_[0] == NULL or self.bytearray_[0] == 0x01:
                 curr = self.consume_prefixed_optional_string()
             else:
                 curr = self.consume_string()
             if curr is None: continue
             to_return.append(curr)
             curr_len = len(curr)
-            length -= (curr_len + len(to_varint(curr_len))) # TODO: Find better solution
+            non_flat_length -= 1
+            flat_length -= (curr_len + len(to_varint(curr_len))) # TODO: Find better solution
         
         return to_return
 
@@ -109,10 +110,10 @@ class Buffer:
         
     def add_prefixed_optional_string(self, string: str | None):
         if string is None:
-            self.add_boolean(constants.NULL)
+            self.add_boolean(False)
             return
         
-        self.add_boolean(0x01)
+        self.add_boolean(True)
         self.add_string(string)
         
     def consume_prefixed_optional_string(self) -> str | None:

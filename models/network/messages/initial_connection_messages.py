@@ -116,12 +116,56 @@ def handle_message_client_information(conn: TCPConnection, state: network.Connec
         allow_server_listing = buf.consume_boolean(),
         particle_status = buf.consume_varint()
     )
+
+def handle_message_clientbound_known_packs(conn: TCPConnection):
+    """
+    Outgoing
+    """
+    known_packs = Buffer()
+    known_packs.add_prefixed_string_array([("minecraft", "core", "1.21.11")])
+    conn.send_mc_packet(known_packs, network.ConfigurationStatePacketID.ClientboundKnownPacks.value)
+
+@dataclass
+class ServerboundKnownPacks:
+    namespace: list[str]
+    id: list[str]
+    version: list[str]
+
+def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.ConnectionState):
+    """
+    Incoming
+    """
+    packet_id, buf = conn.recv_mc_packet()
+    if packet_id != network.ConfigurationStatePacketID.ServerboundKnowPacks.value or state != network.ConnectionState.Configuration:
+        raise ConnectionError("Unexpected packet ID or state for serverbound know packs")
     
+    namespace: list[str] = []
+    id: list[str] = []
+    version: list[str] = []
+
+    known_packs = buf.consume_prefixed_string_array(3)
+
+    for i in range(len(known_packs)):
+        match i % 3: # type: ignore
+            case 1:
+                namespace.append(known_packs[i])
+            case 2:
+                id.append(known_packs[i])
+            case 0:
+                version.append(known_packs[i])
+
+    return ServerboundKnownPacks(
+        namespace = namespace,
+        id = id,
+        version = version
+    )
+
+
 def handle_message_registry_data(conn: TCPConnection):
     """
     Outgoing
     """
-    registry_data = network_utils.fetch_registries(constants.REGISTRIES_URL)
+    registry_data = network_utils.fetch_registries(constants.REGISTRIES_FILE)
     
     for reg, entries in registry_data.items():
         registry_data_msg = Buffer()

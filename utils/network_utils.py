@@ -1,10 +1,10 @@
 from typing import Any
-
+import json
 import requests
 from uuid import UUID
 from constants import *
 
-from constants.constants import MOJANG_PROFILE_API, REGISTRIES_URL
+from constants.constants import MOJANG_PROFILE_API, REGISTRIES_FILE
 from models.buffer import OptionalString
 
 def fetch_player_properties(uuid: UUID) -> list[tuple[str, str, OptionalString]]:
@@ -26,7 +26,8 @@ def fetch_player_properties(uuid: UUID) -> list[tuple[str, str, OptionalString]]
 def fetch_registries(url: str) -> dict[str, list[str]]:
     to_return: dict[str, list[str]] = {}
 
-    registries: dict[str, dict[str, Any]] = requests.get(REGISTRIES_URL).json()
+    with open(REGISTRIES_FILE, "r") as file:
+        registries: dict[str, dict[str, Any]] = json.load(file)
     for reg, data in registries.items():
         to_return[reg] = list(data.keys())
     

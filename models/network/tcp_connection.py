@@ -27,6 +27,7 @@ class TCPConnection:
             size.extend(byte)
             if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
         
+        Logger.error(str(size))
         msg = Buffer(bytearray(self._recv(from_varint(size))))
         packet_id = msg.consume_varint()
 

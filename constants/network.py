@@ -19,6 +19,8 @@ class ConfigurationStatePacketID(Enum):
     PluginMessage = 0x02
     FinishConfiguration = 0x03
     RegistryData = 0x07
+    ServerboundKnowPacks = 0x07
+    ClientboundKnownPacks = 0x0E
 
 class PlayStatePacketID(Enum):
     LoginPlay = 0x30

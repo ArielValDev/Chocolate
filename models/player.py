@@ -27,9 +27,12 @@ class Player:
 
         _ = handle_message_plugin_message(self.conn, self.connection_state)
         client_inforamtion=  handle_message_client_information(self.conn, self.connection_state)
+
+        handle_message_clientbound_known_packs(self.conn)
+        client_known_packs = handle_message_serverbound_known_packs(self.conn, self.connection_state)
+
         handle_message_registry_data(self.conn)
-        Logger.error("finished reg")
         handle_message_finish_configuration(self.conn)
-        #handle_message_ack_finish_configuration(self.conn, self.connection_state)
+        handle_message_ack_finish_configuration(self.conn, self.connection_state)
 
         self.connection_state = ConnectionState.Play
