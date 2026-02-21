@@ -5,7 +5,16 @@ import socket
 from models.player import Player
 from models.network.tcp_connection import TCPConnection
 from utils.logger import Logger
+from utils.network_utils import fetch_registries_into_file
 
+class EntityIDGenerator:
+    def __init__(self):
+        self.current = 0
+
+    def next(self):
+        eid = self.current
+        self.current += 1
+        return eid
 
 class ChocolateServer:
 
@@ -14,6 +23,7 @@ class ChocolateServer:
         
     
     def init(self):
+        fetch_registries_into_file()
         if self.config.load_file(constants.CONFIG_FILE_PATH): return
         with open(constants.CONFIG_FILE_PATH, "w") as f:
             json.dump(self.config.get_json(), f)
@@ -24,7 +34,8 @@ class ChocolateServer:
         serv.bind(("127.0.0.1", self.config.port))
         serv.listen(5)
 
+        eid_gen = EntityIDGenerator()
         while True:
             cli, addr = serv.accept()
-            player = Player(TCPConnection(addr, cli))
+            player = Player(TCPConnection(addr, cli), eid_gen.next())
             player.connect_to_world()

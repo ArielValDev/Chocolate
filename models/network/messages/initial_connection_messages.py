@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from dataclasses import dataclass
 from constants import network
@@ -145,8 +146,8 @@ def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.C
 
     known_packs = buf.consume_prefixed_string_array(3)
 
-    for i in range(len(known_packs)):
-        match i % 3: # type: ignore
+    for i in range(0, len(known_packs)):
+        match (i+1) % 3: # type: ignore
             case 1:
                 namespace.append(known_packs[i])
             case 2:
@@ -165,7 +166,7 @@ def handle_message_registry_data(conn: TCPConnection):
     """
     Outgoing
     """
-    registry_data = network_utils.fetch_registries(constants.REGISTRIES_FILE)
+    registry_data = network_utils.get_registries_from_file(constants.REGISTRIES_FILE)
     
     for reg, entries in registry_data.items():
         registry_data_msg = Buffer()
@@ -178,7 +179,41 @@ def handle_message_finish_configuration(conn: TCPConnection):
 
 def handle_message_ack_finish_configuration(conn: TCPConnection, state: network.ConnectionState):
     packet_id, _ = conn.recv_mc_packet()
-    if packet_id != network.ConfigurationStatePacketID.FinishConfiguration.value or state != network.ConnectionState.Login:
+    if packet_id != network.ConfigurationStatePacketID.FinishConfiguration.value or state != network.ConnectionState.Configuration:
         raise ConnectionError("Unexpected packet ID or state for finish configuration")
     
-# def handle_message_login_play(conn: TCPConnection):
+def handle_message_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, max_players: int, view_distance: int, simulation_distance: int, reduced_debug_info: bool, enable_respawn_screen: bool, do_limited_crafting: bool, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, enforces_secure_chat: bool):
+    login_play_packet = Buffer()
+    
+    login_play_packet.add_raw(bytearray([eid]))
+    login_play_packet.add_boolean(is_hardcore)
+
+    with open(constants.REGISTRIES_FILE, "r") as f:
+        dimensions: list[str] = []
+        registries: dict[str, list[str]] = json.load(f)
+        for reg, data in registries.items():
+            if reg == "minecraft:dimension_type":
+                dimensions = data
+
+    login_play_packet.add_prefixed_string_array([(d, ) for d in dimensions])
+    login_play_packet.add_varint(max_players)
+    login_play_packet.add_varint(view_distance)
+    login_play_packet.add_varint(simulation_distance)
+    login_play_packet.add_boolean(reduced_debug_info)
+    login_play_packet.add_boolean(enable_respawn_screen)
+    login_play_packet.add_boolean(do_limited_crafting)
+    login_play_packet.add_varint(0)
+    login_play_packet.add_string(dimension_name)
+    login_play_packet.add_long(hashed_seed)
+    login_play_packet.add_unsigned_byte(game_mode)
+    login_play_packet.add_byte(previouse_game_mode)
+    login_play_packet.add_boolean(is_debug)
+    login_play_packet.add_boolean(is_flat)
+    login_play_packet.add_boolean(has_death_location)
+    #login_play_packet.add_optional_string(death_dimention_name)
+    #login_play_packet.add_long(death_location)
+    login_play_packet.add_varint(portal_cooldown)
+    login_play_packet.add_varint(sea_level)
+    login_play_packet.add_boolean(enforces_secure_chat)
+
+

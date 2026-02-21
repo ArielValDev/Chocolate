@@ -16,5 +16,6 @@ VARINT_CONTINUE_BIT = 0x80
 LOG_LEVEL = LogLevel.Verbose
 NULL = 0x00
 
+VERSION_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 MOJANG_PROFILE_API = "https://sessionserver.mojang.com/session/minecraft/profile/"
 REGISTRIES_FILE = "constants/registry_data.json"

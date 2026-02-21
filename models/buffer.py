@@ -1,4 +1,6 @@
 from uuid import UUID
+import constants
+import constants.constants
 from utils.logger import Logger
 from utils.protocol_type_utils import *
 from uuid import UUID
@@ -55,6 +57,27 @@ class Buffer:
         short = self.consume_raw(2)
         return int.from_bytes(short)
     
+    def add_long(self, long: int):
+        self.bytearray_.extend(long.to_bytes(8, signed=True))
+    
+    def consume_long(self) -> int:
+        long = self.consume_raw(8)
+        return int.from_bytes(long, signed=True)
+    
+    def add_unsigned_byte(self, byte: int):
+        self.bytearray_.extend(byte.to_bytes(1, signed=True))
+
+    def consume_unsigned_byte(self) -> int:
+        byte = self.consume_raw(1)
+        return int.from_bytes(byte, signed=True)
+    
+    def add_byte(self, byte: int):
+        self.bytearray_.extend(byte.to_bytes(1, signed=True))
+
+    def consume_byte(self) -> int:
+        byte = self.consume_raw(1)
+        return int.from_bytes(byte, signed=True)
+
     def add_uuid(self, uuid: UUID):
         self.bytearray_.extend(uuid.bytes)
 
@@ -74,10 +97,13 @@ class Buffer:
                 self.add_string(var)
 
     def consume_prefixed_string_array(self, non_flat_length: int = -1) -> list[str]:
+
         flat_length = self.consume_varint()
+        if non_flat_length != -1:
+            flat_length = -1
         to_return: list[str] = []
 
-        while non_flat_length != 1 and flat_length != 0:
+        while non_flat_length != 0 and flat_length != 0:
             if self.bytearray_[0] == NULL or self.bytearray_[0] == 0x01:
                 curr = self.consume_prefixed_optional_string()
             else:
