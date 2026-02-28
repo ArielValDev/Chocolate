@@ -77,6 +77,13 @@ class Buffer:
     def consume_byte(self) -> int:
         byte = self.consume_raw(1)
         return int.from_bytes(byte, signed=True)
+    
+    def add_int(self, integer: int):
+        self.bytearray_.extend(integer.to_bytes(4))
+
+    def consume_int(self) -> int:
+        integer = self.consume_raw(4)
+        return int.from_bytes(integer, signed = True)
 
     def add_uuid(self, uuid: UUID):
         self.bytearray_.extend(uuid.bytes)
@@ -86,6 +93,51 @@ class Buffer:
         self.bytearray_ = self.bytearray_[16:]
         return UUID(uuid.hex())
     
+    def add_prefixed_string_tag_array(self, array_: list[tuple[str, "Buffer"]]):
+        length = len(array_)
+
+        self.add_varint(length)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
+            if isinstance(var, str):
+                self.add_string(var)
+            else: 
+                self.add_raw(var.bytearray_)
+
+    def add_prefixed_tag_array(self, array_: list[tuple[str, list[int]]]):
+        length = len(array_)
+
+        self.add_varint(length)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
+            if isinstance(var, str):
+                self.add_string(var)
+            else:
+                self.add_prefixed_varint_array([(i, ) for i in var])
+
+    def consume_prefixed_tag_array(self):
+        raise NotImplemented()
+
+    def add_prefixed_varint_array(self, array_: list[tuple[int, ...]]):
+        length = len(array_)
+
+        self.add_varint(length)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
+            self.add_varint(var)
+
+    def consume_prefixed_varint_array(self, non_flat_length: int = -1) -> list[int]:
+        flat_length = self.consume_varint()
+        if non_flat_length != -1:
+            flat_length = -1
+        to_return: list[int] = []
+
+        while non_flat_length != 0 and flat_length != 0:
+            curr = self.consume_varint()
+            to_return.append(curr)
+            curr_len = len(to_varint(curr))
+            non_flat_length -= 1
+            flat_length -= curr_len
+        
+        return to_return
+
     def add_prefixed_string_array(self, array_: list[tuple[str | OptionalString, ...]]):
         length = len(array_)
         

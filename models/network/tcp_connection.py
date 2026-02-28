@@ -33,7 +33,7 @@ class TCPConnection:
         Logger.verbose(f"Recieved a messege of packet id {packet_id}: {msg.get_bytes()}")
         return packet_id, msg
     
-    def send_mc_packet(self, buffer: Buffer, packet_id: int):
+    def send_mc_packet(self, buffer: Buffer, packet_id: int, temp: bool = False):
         Logger.verbose(f"Sent packet of id {packet_id}: {buffer.get_bytes()}")
         all_data = to_varint(packet_id) + buffer.get_bytes()
-        self._send(bytes(to_varint(len(all_data))) + all_data)
+        self._send(bytes(to_varint(len(all_data)+int(temp))) + (b'\0' if temp else b'') + all_data)

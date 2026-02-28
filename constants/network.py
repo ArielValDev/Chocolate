@@ -21,6 +21,8 @@ class ConfigurationStatePacketID(Enum):
     RegistryData = 0x07
     ServerboundKnowPacks = 0x07
     ClientboundKnownPacks = 0x0E
+    UpdateTags = 0x0D
 
 class PlayStatePacketID(Enum):
     LoginPlay = 0x30
+    SynchronizePlayerPosition = 0x46

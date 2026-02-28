@@ -32,7 +32,7 @@ def get_registries_from_file(url: str) -> dict[str, list[str]]:
     
     return to_return
 
-def fetch_registries_into_file():
+def fetch_version_client():
     versions = requests.get(constants.VERSION_MANIFEST).json()
     version_url = ""
     for version in versions["versions"]:
@@ -52,6 +52,7 @@ def fetch_registries_into_file():
     with open("client.jar", "wb") as f:
         f.write(client_jar_response.content)
 
+def fetch_registries_into_file():
     registries: dict[str, list[str]] = {}
     with zipfile.ZipFile("client.jar", "r") as jar:
         for file in jar.namelist():
@@ -60,14 +61,18 @@ def fetch_registries_into_file():
             if not file.endswith(".json"):
                 continue
 
-            if "enchantment/" in file or "tags/" in file in file: continue
+            if "enchantment/" in file or "flie/" in file: continue
 
-            relative_path = file.replace("data/minecraft/", "")            
+            relative_path = file.replace("data/minecraft/", "")   
+
             parts = relative_path.split("/")
             if len(parts) < 2:
                 continue
             
             registry_name = parts[0]
+            if parts[0] == "worldgen":
+                if parts[1] != "biome": continue
+                registry_name = parts[0] + '/' + parts[1]
             file_name = parts[-1].replace(".json", "")
             
             registry_key = f"minecraft:{registry_name}"
@@ -75,8 +80,9 @@ def fetch_registries_into_file():
             
             if registry_key not in registries:
                 registries[registry_key] = []
-            
+
             registries[registry_key].append(entry_key)
 
     with open("constants/registry_data.json", "w", encoding="utf-8") as f:
         json.dump(registries, f)
+

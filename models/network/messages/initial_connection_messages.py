@@ -123,7 +123,7 @@ def handle_message_clientbound_known_packs(conn: TCPConnection):
     Outgoing
     """
     known_packs = Buffer()
-    known_packs.add_prefixed_string_array([("minecraft", "core", "1.21.11")])
+    known_packs.add_prefixed_string_array(constants.KNOWN_PACKS) # type: ignore
     conn.send_mc_packet(known_packs, network.ConfigurationStatePacketID.ClientboundKnownPacks.value)
 
 @dataclass
@@ -132,7 +132,7 @@ class ServerboundKnownPacks:
     id: list[str]
     version: list[str]
 
-def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.ConnectionState):
+def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.ConnectionState) -> ServerboundKnownPacks:
     """
     Incoming
     """
@@ -161,6 +161,12 @@ def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.C
         version = version
     )
 
+def same_known_packs(known_packs: ServerboundKnownPacks) -> bool:
+    for i, packs in enumerate(constants.KNOWN_PACKS):
+        if packs[0] != known_packs.namespace[i] or packs[1] != known_packs.id[i] or packs[2] != known_packs.version[i]:
+            return False
+    return True
+
 
 def handle_message_registry_data(conn: TCPConnection):
     """
@@ -172,7 +178,29 @@ def handle_message_registry_data(conn: TCPConnection):
         registry_data_msg = Buffer()
         registry_data_msg.add_string(reg)
         registry_data_msg.add_prefixed_string_array([(p, OptionalString(None)) for p in entries])
-        conn.send_mc_packet(registry_data_msg, network.ConfigurationStatePacketID.RegistryData.value)
+        if (reg == "minecraft:timeline"):
+            conn.send_mc_packet(registry_data_msg, network.ConfigurationStatePacketID.RegistryData.value)
+        else:
+            conn.send_mc_packet(registry_data_msg, network.ConfigurationStatePacketID.RegistryData.value)
+
+def handle_message_update_tags(conn: TCPConnection):
+    update_tags = Buffer()
+    update_tags_array: list[tuple[str, Buffer]] = []
+    with open(constants.TAGS_FILE, 'r') as file:
+        tags_data = json.load(file)
+    
+
+    for reg in tags_data:
+        tags = Buffer()
+        tags_array: list[tuple[str, list[int]]] = []
+        for tag in tags_data[reg]:
+            tags_array.append((tag, tags_data[reg][tag]))
+        
+        tags.add_prefixed_tag_array(tags_array)
+        update_tags_array.append((reg, tags))
+
+    update_tags.add_prefixed_string_tag_array(update_tags_array)
+    conn.send_mc_packet(update_tags, network.ConfigurationStatePacketID.UpdateTags.value)
     
 def handle_message_finish_configuration(conn: TCPConnection):
     conn.send_mc_packet(Buffer(), network.ConfigurationStatePacketID.FinishConfiguration.value)
@@ -185,7 +213,7 @@ def handle_message_ack_finish_configuration(conn: TCPConnection, state: network.
 def handle_message_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, max_players: int, view_distance: int, simulation_distance: int, reduced_debug_info: bool, enable_respawn_screen: bool, do_limited_crafting: bool, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, enforces_secure_chat: bool):
     login_play_packet = Buffer()
     
-    login_play_packet.add_raw(bytearray([eid]))
+    login_play_packet.add_int(eid)
     login_play_packet.add_boolean(is_hardcore)
 
     with open(constants.REGISTRIES_FILE, "r") as f:
@@ -210,10 +238,13 @@ def handle_message_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, 
     login_play_packet.add_boolean(is_debug)
     login_play_packet.add_boolean(is_flat)
     login_play_packet.add_boolean(has_death_location)
-    #login_play_packet.add_optional_string(death_dimention_name)
-    #login_play_packet.add_long(death_location)
+    login_play_packet.add_optional_string(death_dimention_name)
+    login_play_packet.add_long(death_location)
     login_play_packet.add_varint(portal_cooldown)
     login_play_packet.add_varint(sea_level)
     login_play_packet.add_boolean(enforces_secure_chat)
 
+    conn.send_mc_packet(login_play_packet, network.PlayStatePacketID.LoginPlay.value)
 
+def handle_message_synchronize_player_position(conn: TCPConnection):
+    pass
