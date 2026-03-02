@@ -3,7 +3,6 @@ import requests
 from uuid import UUID
 from constants import constants
 import zipfile
-
 from models.buffer import OptionalString
 
 def fetch_player_properties(uuid: UUID) -> list[tuple[str, str, OptionalString]]:

@@ -1,5 +1,8 @@
 from enum import Enum
 
+class GeneratorIDs(Enum):
+    EntityID = 0
+    TeleportID = 1
 
 class LogLevel(Enum):
     Verbose = 0

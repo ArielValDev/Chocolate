@@ -2,7 +2,6 @@ import zipfile
 from constants import constants
 import json
 
-
 def _is_in_registry(registry: str):
     with open(constants.REGISTRIES_FILE, "r") as file:
         regs = json.load(file) 

@@ -16,7 +16,7 @@ class HandshakePacketData:
     port: int
     intent: int
 
-def handle_message_handshake(conn: TCPConnection, state: network.ConnectionState) -> HandshakePacketData:
+def handle_login_packet_handshake(conn: TCPConnection, state: network.ConnectionState) -> HandshakePacketData:
     """
     Incoming
     """
@@ -36,7 +36,7 @@ class LoginPacketData:
     username: str
     uuid: UUID
 
-def handle_message_login(conn: TCPConnection, state: network.ConnectionState) -> LoginPacketData:
+def handle_login_packet_login(conn: TCPConnection, state: network.ConnectionState) -> LoginPacketData:
     """
     Incoming
     """
@@ -49,7 +49,7 @@ def handle_message_login(conn: TCPConnection, state: network.ConnectionState) ->
         uuid=buf.consume_uuid()
     )
 
-def handle_message_login_success(conn: TCPConnection, uuid: UUID, username: str):
+def handle_login_packet_login_success(conn: TCPConnection, uuid: UUID, username: str):
     """
     Outgoing
     """
@@ -59,7 +59,7 @@ def handle_message_login_success(conn: TCPConnection, uuid: UUID, username: str)
 
     conn.send_mc_packet(login_success_msg, network.LoginStatePacketID.LoginSuccess.value)
     
-def handle_message_login_ack(conn: TCPConnection, state: network.ConnectionState):
+def handle_login_packet_login_ack(conn: TCPConnection, state: network.ConnectionState):
     """
     Incoming
     """
@@ -72,7 +72,7 @@ class PluginMessagePacketData:
     channel: str
     data: Any
 
-def handle_message_plugin_message(conn: TCPConnection, state: network.ConnectionState) -> PluginMessagePacketData:
+def handle_login_packet_plugin_message(conn: TCPConnection, state: network.ConnectionState) -> PluginMessagePacketData:
     """
     Incoming
     """
@@ -98,7 +98,7 @@ class ClientInformationPacketData:
     particle_status: int
 
 
-def handle_message_client_information(conn: TCPConnection, state: network.ConnectionState) -> ClientInformationPacketData:
+def handle_login_packet_client_information(conn: TCPConnection, state: network.ConnectionState) -> ClientInformationPacketData:
     """
     Incoming
     """
@@ -118,7 +118,7 @@ def handle_message_client_information(conn: TCPConnection, state: network.Connec
         particle_status = buf.consume_varint()
     )
 
-def handle_message_clientbound_known_packs(conn: TCPConnection):
+def handle_login_packet_clientbound_known_packs(conn: TCPConnection):
     """
     Outgoing
     """
@@ -132,7 +132,7 @@ class ServerboundKnownPacks:
     id: list[str]
     version: list[str]
 
-def handle_message_serverbound_known_packs(conn: TCPConnection, state: network.ConnectionState) -> ServerboundKnownPacks:
+def handle_login_packet_serverbound_known_packs(conn: TCPConnection, state: network.ConnectionState) -> ServerboundKnownPacks:
     """
     Incoming
     """
@@ -168,7 +168,7 @@ def same_known_packs(known_packs: ServerboundKnownPacks) -> bool:
     return True
 
 
-def handle_message_registry_data(conn: TCPConnection):
+def handle_login_packet_registry_data(conn: TCPConnection):
     """
     Outgoing
     """
@@ -183,7 +183,10 @@ def handle_message_registry_data(conn: TCPConnection):
         else:
             conn.send_mc_packet(registry_data_msg, network.ConfigurationStatePacketID.RegistryData.value)
 
-def handle_message_update_tags(conn: TCPConnection):
+def handle_login_packet_update_tags(conn: TCPConnection):
+    """
+    Outgoing
+    """
     update_tags = Buffer()
     update_tags_array: list[tuple[str, Buffer]] = []
     with open(constants.TAGS_FILE, 'r') as file:
@@ -202,15 +205,24 @@ def handle_message_update_tags(conn: TCPConnection):
     update_tags.add_prefixed_string_tag_array(update_tags_array)
     conn.send_mc_packet(update_tags, network.ConfigurationStatePacketID.UpdateTags.value)
     
-def handle_message_finish_configuration(conn: TCPConnection):
+def handle_login_packet_finish_configuration(conn: TCPConnection):
+    """
+    Outgoing
+    """
     conn.send_mc_packet(Buffer(), network.ConfigurationStatePacketID.FinishConfiguration.value)
 
-def handle_message_ack_finish_configuration(conn: TCPConnection, state: network.ConnectionState):
+def handle_login_packet_ack_finish_configuration(conn: TCPConnection, state: network.ConnectionState):
+    """
+    Incoming
+    """
     packet_id, _ = conn.recv_mc_packet()
     if packet_id != network.ConfigurationStatePacketID.FinishConfiguration.value or state != network.ConnectionState.Configuration:
         raise ConnectionError("Unexpected packet ID or state for finish configuration")
     
-def handle_message_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, max_players: int, view_distance: int, simulation_distance: int, reduced_debug_info: bool, enable_respawn_screen: bool, do_limited_crafting: bool, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, enforces_secure_chat: bool):
+def handle_login_packet_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, max_players: int, view_distance: int, simulation_distance: int, reduced_debug_info: bool, enable_respawn_screen: bool, do_limited_crafting: bool, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, enforces_secure_chat: bool):
+    """
+    Outgoing
+    """
     login_play_packet = Buffer()
     
     login_play_packet.add_int(eid)
@@ -245,6 +257,3 @@ def handle_message_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, 
     login_play_packet.add_boolean(enforces_secure_chat)
 
     conn.send_mc_packet(login_play_packet, network.PlayStatePacketID.LoginPlay.value)
-
-def handle_message_synchronize_player_position(conn: TCPConnection):
-    pass

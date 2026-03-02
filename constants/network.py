@@ -24,5 +24,9 @@ class ConfigurationStatePacketID(Enum):
     UpdateTags = 0x0D
 
 class PlayStatePacketID(Enum):
+    ConfirmTeleportation = 0x00
+    SetPlayerPositionAndRotation = 0x1E
+    GameEvent = 0x26
     LoginPlay = 0x30
+    PlayerInfoUpdate = 0x44
     SynchronizePlayerPosition = 0x46

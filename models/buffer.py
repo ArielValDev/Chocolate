@@ -1,19 +1,24 @@
 from uuid import UUID
 import constants
 import constants.constants
+from models.mc_types import OptionalString
 from utils.logger import Logger
 from utils.protocol_type_utils import *
 from uuid import UUID
+from amulet_nbt import StringTag
+from nbt import nbt
+from io import BytesIO
+import struct
 
-class OptionalString:
-    def __init__(self, s: str | None):
-        self.s = s
 
 class Buffer:
     def __init__(self, bytearray_: bytearray | None = None):
         if bytearray_ is None: bytearray_ = bytearray()
         self.bytearray_ = bytearray_
     
+    def add_buffer(self, buffer: "Buffer"):
+        self.bytearray_.extend(buffer.bytearray_)
+
     def get_bytes(self) -> bytes:
         return bytes(self.bytearray_)
     
@@ -84,6 +89,20 @@ class Buffer:
     def consume_int(self) -> int:
         integer = self.consume_raw(4)
         return int.from_bytes(integer, signed = True)
+
+    def add_float(self, value: float):
+        self.bytearray_.extend(struct.pack('>f', value))
+
+    def consume_float(self) -> float:
+        raw = self.consume_raw(4)
+        return struct.unpack('>f', raw)[0]
+
+    def add_double(self, value: float):
+        self.bytearray_.extend(struct.pack('>d', value))
+
+    def consume_double(self) -> float:
+        raw = self.consume_raw(8)
+        return struct.unpack('>d', raw)[0]
 
     def add_uuid(self, uuid: UUID):
         self.bytearray_.extend(uuid.bytes)
@@ -199,3 +218,43 @@ class Buffer:
         if exists:
             return self.consume_string()
         
+    def add_text_component(self, text: str):
+        nbt = StringTag(text)
+        nbt_bytes = nbt.to_nbt(compressed=False)
+        self.bytearray_.extend(nbt_bytes)
+
+    def consume_text_component(self) -> str:
+        tag_id = self.consume_raw(1)[0]
+
+        if tag_id != 8:
+            raise Exception(f"Expected TAG_String (8), got {tag_id}")
+
+        name_length = int.from_bytes(self.consume_raw(2))
+        if name_length > 0:
+            self.consume_raw(name_length)
+
+        string_length = int.from_bytes(self.consume_raw(2))
+        return self.consume_raw(string_length).decode("utf-8")
+
+    def add_prefixed_optional_text_component(self, text: str | None):
+        if text is None:
+            self.add_boolean(False)
+            return
+        
+        self.add_boolean(True)
+        self.add_text_component(text)
+
+    def consume_prefixed_optional_text_component(self) -> str | None:
+        exists = self.consume_boolean()
+        if exists:
+            return self.consume_text_component()
+        
+    def add_prefixed_uuid_player_actions_array(self, array_: list[tuple[UUID, "Buffer"]]):
+        length = len(array_)
+        
+        self.add_varint(length)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
+            if isinstance(var, UUID):
+                self.add_uuid(var)
+            else:
+                self.add_buffer(var)
