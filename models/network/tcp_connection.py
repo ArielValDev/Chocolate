@@ -15,7 +15,13 @@ class TCPConnection:
         self.socket.sendall(msg)
 
     def _recv(self, size: int) -> bytes:
-        return self.socket.recv(size)
+        data = bytearray()
+        while len(data) < size:
+            chunk = self.socket.recv(size - len(data))
+            if not chunk:
+                raise ConnectionError("Socket closed mid-packet")
+            data.extend(chunk)
+        return bytes(data)
     
     def recv_mc_packet(self) -> tuple[int, Buffer]:
         """
@@ -29,8 +35,8 @@ class TCPConnection:
         
         msg = Buffer(bytearray(self._recv(from_varint(size))))
         packet_id = msg.consume_varint()
-
-        Logger.verbose(f"Recieved a messege of packet id {packet_id}: {msg.get_bytes()}")
+        
+        Logger.verbose(f"Recieved a messege of packet id {packet_id} / {hex(packet_id)}: {msg.get_bytes()}")
         return packet_id, msg
     
     def send_mc_packet(self, buffer: Buffer, packet_id: int, temp: bool = False):

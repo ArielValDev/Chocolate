@@ -1,6 +1,9 @@
 from enum import Enum
+from typing import Any, Callable
 
-class TeleportFlags(Enum):
+from models.buffer import Buffer
+
+class TeleportFlag(Enum):
     RelativeX = 0x0001
     RelativeY = 0x0002
     RelativeZ = 0x0004
@@ -11,7 +14,7 @@ class TeleportFlags(Enum):
     RelativeVelocityZ = 0x0080
     RotateVelocity = 0x0100
 
-class PlayerActions(Enum):
+class PlayerAction(Enum):
     AddPlayer = 0x01
     InitializeChat = 0x02
     UpdateGameMode = 0x04
@@ -20,3 +23,50 @@ class PlayerActions(Enum):
     UpdateDisplayName = 0x20
     UpdateListPriority = 0x40
     UpdateHat = 0x80
+
+class GameEvent(Enum):
+    NoRespawnBlockAvailable = 0
+    BeginRaining = 1
+    EndRaining = 2
+    ChangeGameMode = 3
+    WinGame = 4
+    DemoEvent = 5
+    ArrowHitPlayer = 6
+    RainLevelChange = 7
+    ThunderLevelChange = 8
+    PlayPufferfishStingSound = 9
+    PlayElderGuardianMobAppearance = 10
+    EnableRespawnScreen = 11
+    LimitedCrafting = 12
+    StartWaitingForLevelChunks = 13
+
+class ChangeGameModeEvent(Enum):
+    Survival = 0
+    Creative = 1
+    Adventure = 2
+    Spectator = 3
+
+class WinGameEvent(Enum):
+    JustRespawnPlayer = 0
+    RollTheCreditsAndRespawnPlayer = 1
+
+class DemoEventEvent(Enum):
+    ShowWelcomeToDemoScreen = 0
+    TellMovementsControls = 101
+    TellJumpControl = 102
+    TellInventoryControl = 103
+    TellDemoIsOver = 104
+
+class EnableRespawnScreenEvent(Enum):
+    EnableRespawnScreen = 0
+    ImmediatlyRespawn = 1
+
+class LimitedCrafting(Enum):
+    DisableLimitedCrafting = 0
+    EnableLimitedCrafting = 1
+
+class Dimension(Enum):
+    Overworld = 0
+    Nether = 1
+    End = 2
+

@@ -1,7 +1,7 @@
 from uuid import UUID
 import constants
 import constants.constants
-from models.mc_types import OptionalString
+from models.types.mc_types import OptionalString
 from utils.logger import Logger
 from utils.protocol_type_utils import *
 from uuid import UUID
@@ -52,8 +52,14 @@ class Buffer:
         length = self.consume_varint()
         return self.consume_raw(length).decode("UTF-8")
     
+    def add_short(self, short: int):
+        if short > (2**15 - 1) or short < (-1 * 2**15):
+            raise ValueError("Short must be within -32768 - 32767")
+        
+        self.bytearray_.extend(short.to_bytes(2, signed=True))
+    
     def add_unsigned_short(self, unsigned_short: int):
-        if unsigned_short > 2**16 or unsigned_short < 0:
+        if unsigned_short > 2**15 or unsigned_short < 0:
             raise ValueError("unsigned short must be within 0-65535")
         
         self.bytearray_.extend(unsigned_short.to_bytes(2))
@@ -70,11 +76,11 @@ class Buffer:
         return int.from_bytes(long, signed=True)
     
     def add_unsigned_byte(self, byte: int):
-        self.bytearray_.extend(byte.to_bytes(1, signed=True))
+        self.bytearray_.extend(byte.to_bytes(1))
 
     def consume_unsigned_byte(self) -> int:
         byte = self.consume_raw(1)
-        return int.from_bytes(byte, signed=True)
+        return int.from_bytes(byte)
     
     def add_byte(self, byte: int):
         self.bytearray_.extend(byte.to_bytes(1, signed=True))
@@ -84,7 +90,7 @@ class Buffer:
         return int.from_bytes(byte, signed=True)
     
     def add_int(self, integer: int):
-        self.bytearray_.extend(integer.to_bytes(4))
+        self.bytearray_.extend(integer.to_bytes(4, signed = True))
 
     def consume_int(self) -> int:
         integer = self.consume_raw(4)
@@ -258,3 +264,25 @@ class Buffer:
                 self.add_uuid(var)
             else:
                 self.add_buffer(var)
+            
+    def add_prefixed_byte_array(self, array_: list[tuple[int]]):
+        length = len(array_)
+        
+        self.add_varint(length)
+        for var in [prop for t in array_ for prop in t]: # flattening the tuples in array
+            self.add_byte(var)
+
+    def consume_prefixed_byte_array(self, non_flat_length: int = -1) -> list[int]:
+
+        flat_length = self.consume_varint()
+        if non_flat_length != -1:
+            flat_length = -1
+        to_return: list[int] = []
+
+        while non_flat_length != 0 and flat_length != 0:
+            curr = self.consume_byte()
+            to_return.append(curr)
+            non_flat_length -= 1
+            flat_length -= 1
+
+        return to_return

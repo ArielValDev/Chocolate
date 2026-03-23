@@ -1,16 +1,41 @@
+from dataclasses import dataclass
+import math
 from typing import TYPE_CHECKING
-
 from constants import game
+from models.types.position import Position
+from utils.logger import Logger
 
 if TYPE_CHECKING:
     from models.player import Player
 from uuid import UUID
 from constants import network
-from constants.game import PlayerActions
+from constants.game import PlayerAction
 from models.buffer import Buffer
-from models.mc_types import *
+from models.types.mc_types import *
 from models.network.tcp_connection import TCPConnection
 from utils.network_utils import fetch_player_properties
+
+def send_debug_bytes(conn: TCPConnection, bytes_: bytearray):
+    """
+    Outgoing
+    """
+    Logger.debug(str(bytes(bytes_)))
+    conn._send(bytes(bytes_)) # type: ignore
+
+
+def debug_recieve(conn: TCPConnection):
+    """
+    Incomming
+    """
+    _, _ = conn.recv_mc_packet()
+
+def handle_player_packet_ping(conn: TCPConnection, id: int):
+    """
+    Outgoing
+    """
+    ping = Buffer()
+    ping.add_int(id)
+    conn.send_mc_packet(ping, network.PlayStatePacketID.Ping.value)
 
 
 def handle_player_packet_synchronize_player_position(conn: TCPConnection, tpid: int, x: float, y: float, z: float, velocity_x: float, velocity_y: float, velocity_z: float, yaw: float, pitch: float, flags: BitField):
@@ -63,44 +88,44 @@ def handle_player_packet_player_info_update(conn: TCPConnection, actions: BitFie
     for player in players:
         player_actions = Buffer()
 
-        if actions.check(PlayerActions.AddPlayer.value):
+        if actions.check(PlayerAction.AddPlayer.value):
             add_player = Buffer()
             player_props = fetch_player_properties(player.uuid)
             add_player.add_string(player.username)
             add_player.add_prefixed_string_array(player_props)
             player_actions.add_buffer(add_player)
 
-        if actions.check(PlayerActions.InitializeChat.value):
+        if actions.check(PlayerAction.InitializeChat.value):
             raise NotImplemented("Chat not implemented")
             initialize_chat = Buffer()
             player_actions.add_buffer(initialize_chat)
 
-        if actions.check(PlayerActions.UpdateGameMode.value):
+        if actions.check(PlayerAction.UpdateGameMode.value):
             update_game_mode = Buffer()
             update_game_mode.add_varint(game_mode)
             player_actions.add_buffer(update_game_mode)
         
-        if actions.check(PlayerActions.UpdateListed.value):
+        if actions.check(PlayerAction.UpdateListed.value):
             update_listed = Buffer()
             update_listed.add_boolean(should_be_listed)
             player_actions.add_buffer(update_listed)
 
-        if actions.check(PlayerActions.UpdateLatency.value):
+        if actions.check(PlayerAction.UpdateLatency.value):
             update_latency = Buffer()
             update_latency.add_varint(ping)
             player_actions.add_buffer(update_latency)
 
-        if actions.check(PlayerActions.UpdateDisplayName.value):
+        if actions.check(PlayerAction.UpdateDisplayName.value):
             update_display_name = Buffer()
             update_display_name.add_prefixed_optional_text_component(display_name)
             player_actions.add_buffer(update_display_name)
 
-        if actions.check(PlayerActions.UpdateListPriority.value):
+        if actions.check(PlayerAction.UpdateListPriority.value):
             update_list_priority = Buffer()
             update_list_priority.add_varint(priority)
             player_actions.add_buffer(update_list_priority)
         
-        if actions.check(PlayerActions.UpdateHat.value):
+        if actions.check(PlayerAction.UpdateHat.value):
             update_hat = Buffer()
             update_hat.add_boolean(visible_hat)
             player_actions.add_buffer(update_hat)
@@ -118,3 +143,189 @@ def handle_player_packet_game_event(conn: TCPConnection, event: int, value: floa
     game_event.add_unsigned_byte(event)
     game_event.add_float(value)
     conn.send_mc_packet(game_event, network.PlayStatePacketID.GameEvent.value)
+
+def handle_player_packet_set_center_chunk(conn: TCPConnection, position: Position):
+    """
+    Outgoing
+    """
+    chunk = position.to_chunk()
+    set_center_chunk = Buffer()
+    set_center_chunk.add_varint(chunk.x)
+    set_center_chunk.add_varint(chunk.z)
+    conn.send_mc_packet(set_center_chunk, network.PlayStatePacketID.SetCenterChunk.value)
+
+# TODO: world generation
+@dataclass
+class PalettedContainer:
+    bits_per__entry: int
+    palette: list[int]
+    data_array: list[int]
+
+@dataclass
+class Section:
+    block_count: int
+    block_states: PalettedContainer
+    biomes: PalettedContainer
+
+def handle_player_packet_chunk_data_and_update_light(conn: TCPConnection, position: Position):
+    chuck_and_light_data = Buffer()
+
+    chunk = position.to_chunk()
+    chuck_and_light_data.add_int(chunk.x)
+    chuck_and_light_data.add_int(chunk.z)
+
+    # Data:
+        # Heightmaps:
+    chuck_and_light_data.add_raw(bytearray([0]))
+        # Data:
+    data = Buffer()
+    block_kinds_num = 2
+    bpe = max(math.ceil(math.log2(block_kinds_num + 1)), 4)
+    entry_mask = (1 << bpe) - 1
+    entries_per_long = 64 // bpe
+
+
+    for i in range(-4, 20):
+        section = Buffer()
+        block_count = 0
+        block_states = Buffer()
+        biomes = Buffer()
+
+        longs: list[int] = []
+        curr_long = 0
+
+        entry_index = 0
+        for y in range(0, 16):
+            for z in range(0, 16):
+                for x in range(0, 16):
+                    block = 1 if (y + i * 16) <= 0 else 0
+                    block_count += block
+                    bit_index = entry_index % entries_per_long * bpe
+                    entry_index += 1
+
+                    curr_long &= ~(entry_mask << bit_index)
+                    curr_long |= block << bit_index
+                    if bit_index + bpe >= 64:
+                        longs.append(curr_long)
+                        curr_long = 0
+        section.add_short(block_count)
+
+        section.add_unsigned_byte(bpe)
+        section.add_varint(2) # Array length
+        section.add_varint(0) # Air
+        section.add_varint(8) # Stone
+
+        for long in longs:
+            section.add_long(long)
+        
+        section.add_unsigned_byte(0)    # bpe = 0 -> single value
+        section.add_varint(1)           # plains = 0
+
+        data.add_buffer(section)
+
+    chuck_and_light_data.add_varint(len(data.bytearray_)) # PREFIXED DATA - always 24 sections
+    chuck_and_light_data.add_buffer(data)
+        # Block entities:
+    chuck_and_light_data.add_varint(0)
+
+    # Light Data:
+    for _ in range(6):
+        chuck_and_light_data.add_varint(0)
+
+    conn.send_mc_packet(chuck_and_light_data, network.PlayStatePacketID.ChunkDataAndLightUpdate.value)
+
+def handle_player_packet_player_loaded(conn: TCPConnection, state: network.ConnectionState):
+    """
+    Incoming
+    """
+    packet_id, _ = conn.recv_mc_packet()
+    if packet_id != network.PlayStatePacketID.PlayerLoaded.value and packet_id != network.PlayStatePacketID.ClientTickEnd.value or state != network.ConnectionState.Play:
+        raise ConnectionError("Unexpected packet ID or state for player loaded")
+
+def handle_player_packet_respawn(conn: TCPConnection, dimension_type: int, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, data_kept: int):
+    respawn_packet = Buffer()
+
+    respawn_packet.add_varint(dimension_type)
+    respawn_packet.add_string(dimension_name)
+    respawn_packet.add_long(hashed_seed)
+    respawn_packet.add_unsigned_byte(game_mode)
+    respawn_packet.add_byte(previouse_game_mode)
+    respawn_packet.add_boolean(is_debug)
+    respawn_packet.add_boolean(is_flat)
+    respawn_packet.add_boolean(has_death_location)
+    respawn_packet.add_optional_string(death_dimention_name)
+    respawn_packet.add_long(death_location)
+    respawn_packet.add_varint(portal_cooldown)
+    respawn_packet.add_varint(sea_level)
+    respawn_packet.add_byte(data_kept)
+
+    conn.send_mc_packet(respawn_packet, network.PlayStatePacketID.Respawn.value)
+
+def handle_player_packet_bundle_delimiter(conn: TCPConnection):
+    conn.send_mc_packet(Buffer(), network.PlayStatePacketID.BundleDelimiter.value)
+
+def handle_player_packet_chunk_batch_start(conn: TCPConnection):
+    """
+    Outgoing
+    """
+    conn.send_mc_packet(Buffer(), network.PlayStatePacketID.ChunkBatchStart.value)
+
+
+def handle_player_packet_chunk_batch_finished(conn: TCPConnection, batch_size: int):
+    """
+    Outgoing
+    """
+    packet = Buffer()
+    packet.add_varint(batch_size)
+    conn.send_mc_packet(packet, network.PlayStatePacketID.ChunkBatchFinished.value)
+
+
+def handle_player_packet_chunk_batch_received(conn: TCPConnection, state: network.ConnectionState) -> float:
+    """
+    Incoming
+    """
+    packet_id, data = conn.recv_mc_packet()
+
+    if packet_id != network.PlayStatePacketID.ChunkBatchReceived.value or state != network.ConnectionState.Play:
+        raise ConnectionError(f"Unexpected packet ID or state for chunk batch recieve")
+
+    return data.consume_float()
+
+def handle_player_packet_keep_alive_clientbound(conn: TCPConnection, id: int):
+    """
+    Outgoing
+    """
+    keep_alive_packet = Buffer()
+    keep_alive_packet.add_long(id)
+    conn.send_mc_packet(keep_alive_packet, network.PlayStatePacketID.KeepAliveToClient.value)
+
+def handle_player_packet_keep_alive_serverbound(conn: TCPConnection, state: network.ConnectionState) -> int:
+    """
+    Incoming
+    """
+    packet_id, data = conn.recv_mc_packet()
+
+    if packet_id != network.PlayStatePacketID.KeepAliveToServer.value or state != network.ConnectionState.Play:
+        raise ConnectionError(f"Unexpected packet ID or state for keep alive")
+    
+    return data.consume_long()
+
+def handle_player_packet_set_ticking_state(conn: TCPConnection, tick_rate: float, is_frozen: bool):
+    """
+    Outgoing
+    """
+    tick_state_packet = Buffer()
+    tick_state_packet.add_float(tick_rate)
+    tick_state_packet.add_boolean(is_frozen)
+
+    conn.send_mc_packet(tick_state_packet, network.PlayStatePacketID.SetTickingState.value)
+
+def handle_player_packet_step_tick(conn: TCPConnection, tick_steps: int):
+    """
+    Outgoing
+    """
+    step_tick_packet = Buffer()
+    step_tick_packet.add_varint(tick_steps)
+
+    conn.send_mc_packet(step_tick_packet, network.PlayStatePacketID.StepTick.value)
+
