@@ -36,10 +36,14 @@ class TCPConnection:
         msg = Buffer(bytearray(self._recv(from_varint(size))))
         packet_id = msg.consume_varint()
         
-        Logger.verbose(f"Recieved a messege of packet id {packet_id} / {hex(packet_id)}: {msg.get_bytes()}")
+        #Logger.verbose(f"Recieved a messege of packet id {packet_id} / {hex(packet_id)}: {msg.get_bytes()}")
         return packet_id, msg
     
     def send_mc_packet(self, buffer: Buffer, packet_id: int, temp: bool = False):
-        Logger.verbose(f"Sent packet of id {packet_id}: {buffer.get_bytes()}")
+        #Logger.verbose(f"Sent packet of id {packet_id}: {buffer.get_bytes()}")
         all_data = to_varint(packet_id) + buffer.get_bytes()
         self._send(bytes(to_varint(len(all_data)+int(temp))) + (b'\0' if temp else b'') + all_data)
+
+    def close_connection(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.close()

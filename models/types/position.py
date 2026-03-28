@@ -9,7 +9,6 @@ class PositionType(Enum):
     Chunk = 1
     Region = 2
 
-
 class Position:
     def __init__(self, x: int, y: int, z: int, dimension: Dimension = Dimension.Overworld, type: PositionType = PositionType.Block):
         self.x = x
@@ -115,3 +114,40 @@ class Position:
 
     def __repr__(self):
         return f"Position(x={self.x}, y={self.y}, z={self.z}, dim={self.dimension}, type={self.type.name})"
+    
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Position):
+            return False
+        return (
+            self.x == other.x and
+            self.y == other.y and
+            self.z == other.z and
+            self.dimension == other.dimension and
+            self.type == other.type
+        )
+    
+    def __hash__(self) -> int:
+        return hash((self.x, self.z, self.dimension, self.type))
+    
+class EntityPosition():
+    def __init__(self, x: float, y: float, z: float, yaw: float, pitch: float, is_on_ground: bool, is_pushing_against_wall: bool, dimension: Dimension = Dimension.Overworld, head_yaw: int = 1):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.yaw = yaw
+        self.head_yaw = head_yaw
+        self.pitch = pitch
+        self.is_on_ground = is_on_ground
+        self.is_pushing_against_wall = is_pushing_against_wall
+        self.dimension = dimension
+
+    def to_chunk(self) -> Position:
+        return Position(
+            math.floor(self.x) >> 4,
+            0, 
+            math.floor(self.z) >> 4,
+            self.dimension,
+            PositionType.Chunk
+        )
+
+        

@@ -1,7 +1,4 @@
 from enum import Enum
-from typing import Any, Callable
-
-from models.buffer import Buffer
 
 class TeleportFlag(Enum):
     RelativeX = 0x0001
@@ -70,3 +67,21 @@ class Dimension(Enum):
     Nether = 1
     End = 2
 
+class Gamemode(Enum):
+    Survival = 0
+    Creative = 1
+    Adventure = 2
+    Spectator = 3
+
+class InGameEvent(Enum):
+    PlayerMoved = 0
+    PlayerRotated = 1
+    PlayerJumped = 2
+    SwingArm = 3
+    PlayerAction = 4
+    PlayerCommand = 5
+    PlayerJoined = 6
+    PlayerMovedAndRotated = 7
+
+class EntityType(Enum):
+    Player = 155

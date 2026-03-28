@@ -250,8 +250,9 @@ def handle_login_packet_login_play(conn: TCPConnection, eid: int, is_hardcore: b
     login_play_packet.add_boolean(is_debug)
     login_play_packet.add_boolean(is_flat)
     login_play_packet.add_boolean(has_death_location)
-    login_play_packet.add_optional_string(death_dimention_name)
-    login_play_packet.add_long(death_location)
+    if has_death_location:
+        login_play_packet.add_optional_string(death_dimention_name)
+        login_play_packet.add_long(death_location)
     login_play_packet.add_varint(portal_cooldown)
     login_play_packet.add_varint(sea_level)
     login_play_packet.add_boolean(enforces_secure_chat)

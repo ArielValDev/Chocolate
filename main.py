@@ -1,6 +1,7 @@
 import socket
 
 from chocolate import ChocolateServer
+from models.game.world import get_chunk_positions_in_range
 from models.network.messages.player_packets import handle_player_packet_chunk_data_and_update_light
 from models.network.tcp_connection import TCPConnection
 from models.types.position import Position

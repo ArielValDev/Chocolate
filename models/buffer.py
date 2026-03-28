@@ -1,13 +1,11 @@
 from uuid import UUID
-import constants
-import constants.constants
 from models.types.mc_types import OptionalString
+from models.types.position import Position
 from utils.logger import Logger
 from utils.protocol_type_utils import *
+from utils.lpvec3 import *
 from uuid import UUID
 from amulet_nbt import StringTag
-from nbt import nbt
-from io import BytesIO
 import struct
 
 
@@ -57,9 +55,13 @@ class Buffer:
             raise ValueError("Short must be within -32768 - 32767")
         
         self.bytearray_.extend(short.to_bytes(2, signed=True))
-    
+        
+    def consume_short(self) -> int:
+        short = self.consume_raw(2)
+        return int.from_bytes(short, signed=True)
+
     def add_unsigned_short(self, unsigned_short: int):
-        if unsigned_short > 2**15 or unsigned_short < 0:
+        if unsigned_short > 2**16 or unsigned_short < 0:
             raise ValueError("unsigned short must be within 0-65535")
         
         self.bytearray_.extend(unsigned_short.to_bytes(2))
@@ -286,3 +288,36 @@ class Buffer:
             flat_length -= 1
 
         return to_return
+    
+    def add_position(self, position: Position):
+        pos = position.to_block()
+
+        x = pos.x & 0x3FFFFFF
+        z = pos.z & 0x3FFFFFF
+        y = pos.y & 0xFFF
+
+        packed = (x << 38) | (z << 12) | y
+        self.add_long(packed)
+
+
+    def consume_position(self) -> Position:
+        val = self.consume_long()
+
+        x = val >> 38
+        y = (val << 52) >> 52
+        z = (val << 26) >> 38
+
+        if x >= (1 << 25):
+            x -= (1 << 26)
+        if y >= (1 << 11):
+            y -= (1 << 12)
+        if z >= (1 << 25):
+            z -= (1 << 26)
+
+        return Position(x, y, z)
+    
+    def add_lpvec3(self, vec3: tuple[float, float, float]) -> None:
+        write_lpvec3(self, vec3)
+
+    def consume_lpvec3(self) -> tuple[float, float, float]:
+        return read_lpvec3(self)
