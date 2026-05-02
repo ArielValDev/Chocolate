@@ -82,6 +82,22 @@ class InGameEvent(Enum):
     PlayerCommand = 5
     PlayerJoined = 6
     PlayerMovedAndRotated = 7
+    PlayerHeadRotated = 8
+    DamageEvent = 9
+    ChatMessage = 10
+    PlayerConnected = 11
+    PlayerDisconnected = 12
+    ServerShutdown = 13
 
 class EntityType(Enum):
     Player = 155
+
+class InteractType(Enum):
+    Interact = 0
+    Attack = 1
+    InteractAt = 2
+
+class ChatFilterType(Enum):
+    PassThrough = 0
+    FullyFiltered = 1
+    PartiallyFiltered = 2

@@ -128,7 +128,8 @@ class Position:
     
     def __hash__(self) -> int:
         return hash((self.x, self.z, self.dimension, self.type))
-    
+
+# no heritance cus position only for block so int and entity uses float
 class EntityPosition():
     def __init__(self, x: float, y: float, z: float, yaw: float, pitch: float, is_on_ground: bool, is_pushing_against_wall: bool, dimension: Dimension = Dimension.Overworld, head_yaw: int = 1):
         self.x = x
@@ -149,5 +150,13 @@ class EntityPosition():
             self.dimension,
             PositionType.Chunk
         )
+    
+    def delta_vector(self, to: "EntityPosition") -> tuple[float, float, float]:
+        return (to.x - self.x, to.y - self.y, to.z - self.z)
+
+    def delta_vector_normalized(self, to: "EntityPosition", factor: int = 1) -> tuple[float, float, float]:
+        delta_vec = self.delta_vector(to)
+        max_element = max(abs(delta_vec[0]), abs(delta_vec[1]), abs(delta_vec[2]), 1)
+        return (delta_vec[0] / max_element * factor, delta_vec[1] / max_element * factor, delta_vec[2] / max_element * factor)
 
         

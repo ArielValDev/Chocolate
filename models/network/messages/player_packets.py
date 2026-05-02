@@ -1,9 +1,6 @@
 from dataclasses import dataclass
-import math
 from typing import TYPE_CHECKING
 
-from requests import get
-from constants import game
 from models.game.world import get_chunk_data_and_update_light_bytes_at
 from models.types.position import Position
 from utils.logger import Logger
@@ -65,6 +62,8 @@ def handle_player_packet_confirm_teleportation(conn: TCPConnection, state: netwo
     Incoming
     """
     packet_id, buf = conn.recv_mc_packet()
+    if buf is None:
+        return
     if packet_id != network.PlayStatePacketID.ConfirmTeleportation.value or state != network.ConnectionState.Play:
         raise ConnectionError("Unexpected packet ID or state for confirm teleportation")
     
@@ -120,7 +119,7 @@ def handle_player_packet_player_info_update(conn: TCPConnection, actions: BitFie
 
         if actions.check(PlayerAction.UpdateDisplayName.value):
             update_display_name = Buffer()
-            update_display_name.add_prefixed_optional_text_component(display_name)
+            update_display_name.add_prefixed_optional_text_component(player.username)
             player_actions.add_buffer(update_display_name)
 
         if actions.check(PlayerAction.UpdateListPriority.value):

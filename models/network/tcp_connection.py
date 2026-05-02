@@ -12,7 +12,11 @@ class TCPConnection:
     # TODO: encryption
 
     def _send(self, msg: bytes):
-        self.socket.sendall(msg)
+        try:
+            self.socket.sendall(msg)
+        except ConnectionAbortedError:
+            #Logger.warn(f"Connection aborted while trying to send to {self.addr[0]}")
+            pass
 
     def _recv(self, size: int) -> bytes:
         data = bytearray()
@@ -23,26 +27,34 @@ class TCPConnection:
             data.extend(chunk)
         return bytes(data)
     
-    def recv_mc_packet(self) -> tuple[int, Buffer]:
+    def recv_mc_packet(self) -> tuple[int, Buffer | None]:
         """
         returns packet id and the data
         """
         size = bytearray()
-        while True:
-            byte = self.socket.recv(1) # The varint of the length of message
-            size.extend(byte)
-            if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
-        
+        try:
+            while True:
+                byte = self.socket.recv(1) # The varint of the length of message
+                size.extend(byte)
+                if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
+        except ConnectionAbortedError:
+            return 0, None
+
+        if len(size) == 0:
+            return 0, None
         msg = Buffer(bytearray(self._recv(from_varint(size))))
+        if len(msg.bytearray_) == 0:
+            return 0, None
         packet_id = msg.consume_varint()
         
-        #Logger.verbose(f"Recieved a messege of packet id {packet_id} / {hex(packet_id)}: {msg.get_bytes()}")
+        
+        #Logger.verbose(f"Recieved a messege of packet id {packet_id} / {hex(packet_id)}: ")#{msg.get_bytes()}")
         return packet_id, msg
     
-    def send_mc_packet(self, buffer: Buffer, packet_id: int, temp: bool = False):
+    def send_mc_packet(self, buffer: Buffer, packet_id: int):
         #Logger.verbose(f"Sent packet of id {packet_id}: {buffer.get_bytes()}")
         all_data = to_varint(packet_id) + buffer.get_bytes()
-        self._send(bytes(to_varint(len(all_data)+int(temp))) + (b'\0' if temp else b'') + all_data)
+        self._send(bytes(to_varint(len(all_data))) + all_data)
 
     def close_connection(self):
         self.socket.shutdown(socket.SHUT_RDWR)

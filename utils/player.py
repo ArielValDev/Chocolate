@@ -1,6 +1,5 @@
-from uuid import uuid4
-
 from constants import game
+from models.db_manager import DBManager
 from models.network.messages.entity_packets import OutgoingEntityPacket
 from typing import TYPE_CHECKING
 
@@ -19,10 +18,14 @@ def update_others_player_joined(player: "Player"):
     actions.set(game.PlayerAction.UpdateHat.value)
     for other in player.server_interface.get_all_players():
         if other != player:
-            handle_player_packet_player_info_update(other.conn, actions, other.uuid, [player], -1, True, 100, "", 1, True) # TODO get real ping
+            handle_player_packet_player_info_update(other.conn, actions, other.uuid, [player], -1, True, 100, player.username, 1, True) # TODO get real ping
             OutgoingEntityPacket.handle_packet_spawn_entity(other.conn, player.eid, player.uuid, game.EntityType.Player.value, player.game_state.current_position, 0)
 
 def update_joined_player_others_exist(player: "Player"):
     for other in player.server_interface.get_all_players():
         if other != player:
             OutgoingEntityPacket.handle_packet_spawn_entity(player.conn, other.eid, other.uuid, game.EntityType.Player.value, other.game_state.current_position, 0)
+
+def handle_player_connected(player: "Player"):
+    if DBManager.load_player_data(player): return
+    DBManager.save_player(player)

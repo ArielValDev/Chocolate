@@ -225,11 +225,12 @@ class Buffer:
         exists = self.consume_boolean()
         if exists:
             return self.consume_string()
-        
+    
     def add_text_component(self, text: str):
-        nbt = StringTag(text)
-        nbt_bytes = nbt.to_nbt(compressed=False)
-        self.bytearray_.extend(nbt_bytes)
+        text_bytes = text.encode()
+        self.bytearray_.append(8) # Meaning string tag
+        self.bytearray_.extend(len(text_bytes).to_bytes(2))
+        self.bytearray_.extend(text_bytes)
 
     def consume_text_component(self) -> str:
         tag_id = self.consume_raw(1)[0]
@@ -288,6 +289,18 @@ class Buffer:
             flat_length -= 1
 
         return to_return
+    
+    def consume_prefixed_optional_byte_array(self, length: int) -> list[int]:
+        exists = self.consume_boolean()
+        to_return: list[int] = []
+
+        if exists:
+            while length != 0:
+                curr = self.consume_byte()
+                to_return.append(curr)
+                length -= 1
+        return to_return
+            
     
     def add_position(self, position: Position):
         pos = position.to_block()

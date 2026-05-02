@@ -1,5 +1,4 @@
 from enum import Enum
-from xml.dom.minidom import Entity
 
 class ConnectionState(Enum):
     Handshaking = 0
@@ -29,15 +28,19 @@ class PlayStatePacketID(Enum):
     ConfirmTeleportation = 0x00
     SpawnEntity = 0x01
     EntityAnimation = 0x02
+    ChatMessage = 0x08
     ChunkBatchReceived = 0x0A
     ChunkBatchFinished = 0x0B
     ChunkBatchStart = 0x0C
     ClientTickEnd = 0x0C
     CloseContainer = 0x12
+    Interact = 0x19
+    DamageEvent = 0x19
     KeepAliveToServer = 0x1B
     SetPlayerPosition = 0x1D
     SetPlayerPositionAndRotation = 0x1E
     SetPlayerRotation = 0x1F
+    Disconnect = 0x20
     UnloadChunk = 0x25
     GameEvent = 0x26
     PlayerAction = 0x28
@@ -54,10 +57,14 @@ class PlayStatePacketID(Enum):
     Ping = 0x3B
     SwingArm = 0x3C
     UseItemOn = 0x3F
+    PlayerChatMessage = 0x3F
     PlayerInfoUpdate = 0x44
     SynchronizePlayerPosition = 0x46
     Respawn = 0x50
+    SetHeadRotation = 0x51
     SetCenterChunk = 0x5C
+    SetEntityVelocity = 0x63
+    SetHealth = 0x66
     UpdateTime = 0x6F
     SetTickingState = 0x7D
     StepTick = 0x7E

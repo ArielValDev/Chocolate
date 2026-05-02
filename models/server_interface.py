@@ -12,3 +12,5 @@ class ServerInterface:
     get_day_time: Callable[[], int]
     get_world_age: Callable[[], int]
     get_config: Callable[[], ServerConfig]
+    get_registry_data: Callable[[], dict[str, list[str]]]
+    remove_player: Callable[["Player"], None]

@@ -8,11 +8,11 @@ from models.game.world import get_players_in_range
 
 class PlayersManager:
     @staticmethod
-    def get_ranged_players(from_player: "Player") -> Generator["Player", None, None]:
+    def get_ranged_players(from_player: "Player", include_player: bool = False) -> Generator["Player", None, None]:
         config = from_player.server_interface.get_config()
         for player in get_players_in_range(from_player.server_interface, from_player.game_state.current_position.to_chunk(), config.render_distance):
-            if player != from_player:
-                yield player
+            if player == from_player and not include_player: continue
+            yield player
     
     @staticmethod
     def get_all_other_players(from_player: "Player", event: InGameEvent, *args: Any) -> Generator["Player", None, None]:

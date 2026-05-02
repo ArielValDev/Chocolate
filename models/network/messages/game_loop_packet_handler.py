@@ -1,6 +1,6 @@
-import copy
 from typing import TYPE_CHECKING
 
+from models.network.messages.entity_packets import IncomingEntityPacket
 from utils.utils import float_to_angle
 if TYPE_CHECKING:
     from models.player import Player
@@ -67,7 +67,6 @@ class OutgoingGameLoopPacketHandler:
         to_load = needed_chunks - loaded_chunks
         to_unload = loaded_chunks - needed_chunks
 
-
         OutgoingGameLoopPacketHandler.set_center_chunk(player.conn, current_chunk)
         for chunk in to_unload:
             OutgoingGameLoopPacketHandler.unload_chunk(
@@ -87,6 +86,35 @@ class OutgoingGameLoopPacketHandler:
             player.meta_data.loaded_chunks.append(chunk)
         OutgoingGameLoopPacketHandler.chunk_batch_finished(player.conn, len(to_load_sorted))
 
+    @staticmethod
+    def handle_player_chat_message(target: "Player", sender: "Player", message:str, timestamp: int, index: int = 0, salt: int = 0, msg_signature_bytes: bytearray | None = None, filter_type: game.ChatFilterType = game.ChatFilterType.PassThrough, filter_type_bits: int | None = None):
+        # Alot of randon fillers here cus chat is very complicated and i dont need all that (look at protocol 0x3F)
+        global_index = target.meta_data.global_chat_index
+        target.meta_data.global_chat_index += 1
+        packet = Buffer()
+        packet.add_varint(global_index)
+        packet.add_uuid(sender.uuid)
+        packet.add_varint(index)
+        packet.add_boolean(False)
+        packet.add_string(message)
+        packet.add_long(timestamp)
+        packet.add_long(salt)
+        packet.add_varint(0)
+        packet.add_boolean(False)
+        packet.add_varint(filter_type.value)
+        chat_type = sender.server_interface.get_registry_data()["minecraft:chat_type"].index("minecraft:chat") + 1
+        packet.add_varint(chat_type)
+        packet.add_text_component(sender.username)
+        packet.add_prefixed_optional_text_component(target.username)
+        target.conn.send_mc_packet(packet, network.PlayStatePacketID.PlayerChatMessage.value)
+
+    @staticmethod
+    def handle_disconnect(player: "Player", reason: str):
+        packet = Buffer()
+        packet.add_text_component(reason)
+        player.conn.send_mc_packet(packet, network.PlayStatePacketID.Disconnect.value)
+    
+    
 class IncomingGameLoopPacketHandler:
 
     @staticmethod
@@ -153,7 +181,7 @@ class IncomingGameLoopPacketHandler:
         player.game_state.current_position.x = x
         player.game_state.current_position.is_on_ground = flags.check(0x01)
         player.game_state.current_position.is_pushing_against_wall = flags.check(0x02)
-        for other_p in PlayersManager.get_ranged_players(player):
+        for other_p in PlayersManager.get_ranged_players(player, True):
             EventManager.trigger(game.InGameEvent.PlayerMoved, other_p, player, dx, dy, dz)
 
     @staticmethod
@@ -170,15 +198,15 @@ class IncomingGameLoopPacketHandler:
 
         angled_yaw = float_to_angle(yaw)
         angled_pitch = float_to_angle(pitch)
-        print(f"(2) raw_yaw: {yaw}, raw_pitch: {pitch}, angled_yaw: {angled_yaw}, angled_pitch: {angled_pitch}")
 
         for other_p in PlayersManager.get_ranged_players(player):
             EventManager.trigger(game.InGameEvent.PlayerRotated, other_p, player, angled_yaw, angled_pitch)
+            EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
 
     @staticmethod
     def _handle_in_game_packet_set_player_position_and_rotation(buf: Buffer, player: "Player"):
         x: float = buf.consume_double()
-        y: float = buf.consume_double()
+        feet_y: float = buf.consume_double()
         z: float = buf.consume_double()
         yaw: float = buf.consume_float()
         pitch: float = buf.consume_float()
@@ -186,17 +214,17 @@ class IncomingGameLoopPacketHandler:
         flags: BitField = BitField()
         flags.set(buf.consume_byte())
 
-        dx = int(x - player.game_state.current_position.x)
-        dy = int(y - player.game_state.current_position.y)
-        dz = int(z - player.game_state.current_position.z)
+        dx = int(x * 4096 - player.game_state.current_position.x * 4096)
+        dy = int(feet_y * 4096 - player.game_state.current_position.y * 4096)
+        dz = int(z * 4096 - player.game_state.current_position.z * 4096)
 
         angled_yaw = float_to_angle(yaw)
         angled_pitch = float_to_angle(pitch)
-        print(f"(1) raw_yaw: {yaw}, raw_pitch: {pitch}, angled_yaw: {angled_yaw}, angled_pitch: {angled_pitch}")
 
-        player.game_state.current_position = EntityPosition(x, y, z, yaw, pitch, flags.check(0x01), flags.check(0x02), player.game_state.current_position.dimension, player.game_state.current_position.head_yaw)
+        player.game_state.current_position = EntityPosition(x, feet_y, z, yaw, pitch, flags.check(0x01), flags.check(0x02), player.game_state.current_position.dimension, player.game_state.current_position.head_yaw)
         for other_p in PlayersManager.get_ranged_players(player):
             EventManager.trigger(game.InGameEvent.PlayerMovedAndRotated, other_p, player, dx, dy, dz, angled_yaw, angled_pitch)
+            EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
 
     @staticmethod
     def _handle_in_game_packet_player_input(buf: Buffer, player: "Player"):
@@ -211,6 +239,19 @@ class IncomingGameLoopPacketHandler:
         pass
 
     @staticmethod
+    def _handle_in_game_packet_chat_message(buf: Buffer, player: "Player"):
+        message: str = buf.consume_string()
+        timestamp: int = buf.consume_long()
+        salt: int = buf.consume_long()
+        signature = buf.consume_prefixed_optional_byte_array(256)
+        msg_count: int = buf.consume_varint()
+        ack: BitField = BitField()
+        ack.set(int.from_bytes(buf.consume_raw(3)))
+        checksum: int = buf.consume_byte()
+        for other_p in PlayersManager.get_ranged_players(player, True):
+            EventManager.trigger(game.InGameEvent.ChatMessage, other_p, player, message, timestamp)
+
+    @staticmethod
     def _handle_in_game_packet_keep_alive_serverbound(buf: Buffer, player: "Player"):
         keep_alive_id = buf.consume_long()
         if keep_alive_id != player.meta_data.awaiting_keep_alive_id:
@@ -218,20 +259,22 @@ class IncomingGameLoopPacketHandler:
         player.meta_data.awaiting_keep_alive_id = None
 
     @staticmethod
-    def handle_in_game_packets(player: "Player"):
+    def handle_in_game_packets(player: "Player") -> bool:
         """
         Incoming
         """
         packet_id, buf = player.conn.recv_mc_packet()
+        if buf is None:
+            EventManager.trigger(game.InGameEvent.PlayerDisconnected, player)
+            return False
 
         handler = PACKET_HANDLER.get(packet_id)
         if handler:
             handler(buf, player)
         else:
+            print(f"Unhandled packet: {hex(packet_id)}")
 
-            pass
-            #print(f"Unhandled packet: {hex(packet_id)}")
-            #exit()
+        return True
 
 PACKET_HANDLER: dict[int, Callable[[Buffer, "Player"], Any]] = {
     network.PlayStatePacketID.ClientTickEnd.value: IncomingGameLoopPacketHandler._handle_in_game_packet_client_tick_end,
@@ -247,5 +290,7 @@ PACKET_HANDLER: dict[int, Callable[[Buffer, "Player"], Any]] = {
     network.PlayStatePacketID.SetHeldItem.value: IncomingGameLoopPacketHandler._handle_in_game_packet_set_held_item,
     network.PlayStatePacketID.UseItemOn.value: IncomingGameLoopPacketHandler._handle_in_game_packet_use_item_on,
     network.PlayStatePacketID.CloseContainer.value: IncomingGameLoopPacketHandler._handle_in_game_packet_close_container,
-    network.PlayStatePacketID.ChunkBatchReceived.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chunk_batch_recieved
+    network.PlayStatePacketID.ChunkBatchReceived.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chunk_batch_recieved,
+    network.PlayStatePacketID.Interact.value: IncomingEntityPacket._handle_in_entity_packet_interact,
+    network.PlayStatePacketID.ChatMessage.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chat_message
     }

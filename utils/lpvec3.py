@@ -44,7 +44,7 @@ def read_lpvec3(buffer: "Buffer") -> tuple[float, float, float]:
         return 0.0, 0.0, 0.0
 
     byte2 = buffer.consume_unsigned_byte()
-    bytes3_to_6 = int.from_bytes(buffer.consume_raw(4), byteorder="big", signed=False)
+    bytes3_to_6 = int.from_bytes(buffer.consume_raw(4))
 
     packed = (bytes3_to_6 << 16) | (byte2 << 8) | byte1
 

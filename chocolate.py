@@ -1,9 +1,12 @@
 import json
 from constants import constants
-from constants.game import Dimension, Gamemode
+from constants import game
+from constants.game import Gamemode
 from models.config import ServerConfig
 import socket
+from models.db_manager import DBManager
 from models.events import event_subscriber
+from models.events.event_manager import EventManager
 from models.player import OfflineState, Player, PlayerGameState
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
@@ -20,12 +23,16 @@ class ChocolateServer:
         self.players: list[Player] = []
         self.day_time: int = 24000
         self.world_age: int = 24000
+        self.registry_data: dict[str, list[str]] = {}
+        self.is_running: bool = False
 
         self.communicator = ServerInterface(
             get_all_players = lambda: self.players,
             get_day_time = lambda: self.day_time,
             get_world_age = lambda: self.world_age,
-            get_config = lambda: self.config
+            get_config = lambda: self.config,
+            get_registry_data = lambda: self.registry_data,
+            remove_player = lambda player: self.players.remove(player)
         )
     
     def init(self):
@@ -33,6 +40,12 @@ class ChocolateServer:
         fetch_version_client()
         fetch_registries_into_file()
         get_tags_into_file()
+
+        Logger.info("Creating databases...")
+        DBManager.init()
+
+        with open(constants.REGISTRIES_FILE, 'r') as f:
+            self.registry_data = json.load(f)
 
         Logger.info("Creating generators...")
         IDGenerator.add_generator(constants.GeneratorIDs.EntityID)
@@ -45,21 +58,29 @@ class ChocolateServer:
         with open(constants.CONFIG_FILE_PATH, "w") as f:
             json.dump(self.config.get_json(), f)
 
-    def handle_player(self, cli: socket.socket, addr: str, player: Player):
+    def handle_player(self, player: Player):
         player.connect_to_world()
+        EventManager.trigger(game.InGameEvent.PlayerConnected, player)
         player.load_world()
         player.game_loop()
 
     def start(self):
-        Logger.info(f"Starting server on port {self.config.port}...")
-        serv = socket.socket()
-        serv.bind(("127.0.0.1", self.config.port))
-        serv.listen(5)
+        Logger.info(f"Starting server on address {constants.IP}:{self.config.port}...")
+        self.serv = socket.socket()
+        self.serv.bind((constants.IP, self.config.port))
+        self.serv.listen(5)
 
-        while True:
-            cli, addr = serv.accept()
-            player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8)), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, 2))
+        self.is_running = True
+        while self.is_running:
+            cli, addr = self.serv.accept()
+            player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, 2, 20, 20))
             self.players.append(player)
-            threading.Thread(target=self.handle_player, args=(cli, addr, player)).start()
-            
-            
+            threading.Thread(target=self.handle_player, args=(player, )).start()
+
+    def save_and_shutdown(self):
+        for player in self.players:
+            DBManager.save_player(player)
+            EventManager.trigger(game.InGameEvent.ServerShutdown, player, "Server closed")
+
+        Logger.info("Saving players before shutting down...")
+        Logger.info("Server is closing...")
