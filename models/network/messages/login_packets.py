@@ -22,7 +22,7 @@ def handle_login_packet_handshake(conn: TCPConnection, state: network.Connection
     """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != network.HandshakingStatePacketID.Handshake.value or state != network.ConnectionState.Handshaking:
-        raise ConnectionError("Unexpected packet ID or state for handshake")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for handshake")
     
     return HandshakePacketData(
         protocol_version=buf.consume_varint(),
@@ -42,11 +42,57 @@ def handle_login_packet_login(conn: TCPConnection, state: network.ConnectionStat
     """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != network.LoginStatePacketID.LoginStart.value or state != network.ConnectionState.Login:
-        raise ConnectionError("Unexpected packet ID or state for login")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for login")
     
     return LoginPacketData(
         username=buf.consume_string(),
         uuid=buf.consume_uuid()
+    )
+
+def handle_login_packet_encryption_request(conn: TCPConnection, public_key: bytes, verify_token: bytes, should_auth: bool):
+    """
+    Outgoing
+    """
+    encryption_request_packet = Buffer()
+    
+    encryption_request_packet.add_string("")
+    
+    public_key_tuples = [((b - 256 if b > 127 else b),) for b in public_key]
+    encryption_request_packet.add_prefixed_byte_array(public_key_tuples)
+    
+    verify_token_tuples = [((b - 256 if b > 127 else b),) for b in verify_token]
+    encryption_request_packet.add_prefixed_byte_array(verify_token_tuples)
+    
+    encryption_request_packet.add_boolean(should_auth)
+    
+    conn.send_mc_packet(encryption_request_packet, network.LoginStatePacketID.Encryption.value)
+
+    
+@dataclass
+class EncryptionResponseData:
+    shared_secret: bytes
+    verify_token: bytes
+
+
+def handle_login_packet_encryption_response(conn: TCPConnection, state: network.ConnectionState) -> EncryptionResponseData:
+    """
+    Incoming
+    """
+    packet_id, buf = conn.recv_mc_packet()
+    if packet_id != network.LoginStatePacketID.Encryption.value or state != network.ConnectionState.Login:
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for encryption response")
+    
+    raw_shared_secret = buf.consume_prefixed_byte_array()
+    unsigned_shared_secret = [b + 256 if b < 0 else b for b in raw_shared_secret]
+    shared_secret = bytes(unsigned_shared_secret)
+    
+    raw_verify_token = buf.consume_prefixed_byte_array()
+    unsigned_verify_token = [b + 256 if b < 0 else b for b in raw_verify_token]
+    verify_token = bytes(unsigned_verify_token)
+
+    return EncryptionResponseData(
+        shared_secret=shared_secret,
+        verify_token=verify_token
     )
 
 def handle_login_packet_login_success(conn: TCPConnection, uuid: UUID, username: str):
@@ -63,9 +109,11 @@ def handle_login_packet_login_ack(conn: TCPConnection, state: network.Connection
     """
     Incoming
     """
+    print(2)
     packet_id, _ = conn.recv_mc_packet()
+    print(2)
     if packet_id != network.LoginStatePacketID.LoginAck.value or state != network.ConnectionState.Login:
-        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for login acknowledge")
     
 @dataclass
 class PluginMessagePacketData:
@@ -78,7 +126,7 @@ def handle_login_packet_plugin_message(conn: TCPConnection, state: network.Conne
     """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != network.ConfigurationStatePacketID.PluginMessage.value or state != network.ConnectionState.Configuration:
-        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for login acknowledge")
     
     return PluginMessagePacketData(
         channel = buf.consume_string(),
@@ -104,7 +152,7 @@ def handle_login_packet_client_information(conn: TCPConnection, state: network.C
     """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != network.ConfigurationStatePacketID.ClientInformation.value or state != network.ConnectionState.Configuration:
-        raise ConnectionError("Unexpected packet ID or state for login acknowledge")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for login acknowledge")
     
     return ClientInformationPacketData(
         locale = buf.consume_string(),
@@ -138,7 +186,7 @@ def handle_login_packet_serverbound_known_packs(conn: TCPConnection, state: netw
     """
     packet_id, buf = conn.recv_mc_packet()
     if packet_id != network.ConfigurationStatePacketID.ServerboundKnowPacks.value or state != network.ConnectionState.Configuration:
-        raise ConnectionError("Unexpected packet ID or state for serverbound know packs")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for serverbound know packs")
     
     namespace: list[str] = []
     id: list[str] = []
@@ -217,7 +265,7 @@ def handle_login_packet_ack_finish_configuration(conn: TCPConnection, state: net
     """
     packet_id, _ = conn.recv_mc_packet()
     if packet_id != network.ConfigurationStatePacketID.FinishConfiguration.value or state != network.ConnectionState.Configuration:
-        raise ConnectionError("Unexpected packet ID or state for finish configuration")
+        raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for finish configuration")
     
 def handle_login_packet_login_play(conn: TCPConnection, eid: int, is_hardcore: bool, max_players: int, view_distance: int, simulation_distance: int, reduced_debug_info: bool, enable_respawn_screen: bool, do_limited_crafting: bool, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, enforces_secure_chat: bool):
     """

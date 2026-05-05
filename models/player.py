@@ -11,6 +11,7 @@ from models.network.messages.login_packets import *
 from models.network.messages.player_packets import *
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
+from models.encryption_manager import EncryptionManager
 from models.types.position import EntityPosition, Position
 from utils.id_generator import IDGenerator
 from utils.logger import Logger
@@ -67,8 +68,18 @@ class Player:
         self.uuid = user_data.uuid
         exists = DBManager.load_player_data(self)
 
+        public_key = EncryptionManager.public_key_bytes
+        verify_token = EncryptionManager.generate_verify_token()
+        handle_login_packet_encryption_request(self.conn, public_key, verify_token, False)
+        encryption_response = handle_login_packet_encryption_response(self.conn, self.connection_state)
+        self.conn.enable_encryption(EncryptionManager.decrypt_shared_secret(encryption_response.shared_secret))
+
+        print(1)
         handle_login_packet_login_success(self.conn, self.uuid, self.username)
+        print("__________________________________________")
         handle_login_packet_login_ack(self.conn, self.connection_state)
+        print(1)
+
 
         self.connection_state = ConnectionState.Configuration
 

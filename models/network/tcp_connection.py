@@ -3,15 +3,30 @@ from constants.constants import *
 from utils.logger import Logger
 from utils.protocol_type_utils import from_varint, to_varint
 from models.buffer import Buffer
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.decrepit.ciphers.modes import CFB8
 
 class TCPConnection:
     def __init__(self, addr: str, socket: socket.socket):
         self.addr = addr
         self.socket = socket
+        self.encryptor = None
+        self.decryptor = None
     
-    # TODO: encryption
+    def enable_encryption(self, shared_secret: bytes):
+        cipher = Cipher(
+            algorithms.AES(shared_secret), 
+            CFB8(shared_secret), 
+            backend=default_backend()
+        )
+        self.encryptor = cipher.encryptor()
+        self.decryptor = cipher.decryptor()
 
     def _send(self, msg: bytes):
+        if self.encryptor:
+            msg = self.encryptor.update(msg)
+
         try:
             self.socket.sendall(msg)
         except ConnectionAbortedError:
@@ -24,6 +39,9 @@ class TCPConnection:
             chunk = self.socket.recv(size - len(data))
             if not chunk:
                 raise ConnectionError("Socket closed mid-packet")
+            
+            if self.decryptor:
+                chunk = self.decryptor.update(chunk)
             data.extend(chunk)
         return bytes(data)
     
@@ -34,12 +52,11 @@ class TCPConnection:
         size = bytearray()
         try:
             while True:
-                byte = self.socket.recv(1) # The varint of the length of message
+                byte = self._recv(1) # The varint of the length of message
                 size.extend(byte)
-                if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
+                if (byte[0] & VARINT_CONTINUE_BIT) == 0: break
         except ConnectionAbortedError:
             return 0, None
-
         if len(size) == 0:
             return 0, None
         msg = Buffer(bytearray(self._recv(from_varint(size))))

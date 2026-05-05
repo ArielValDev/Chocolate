@@ -27,7 +27,8 @@ def debug_recieve(conn: TCPConnection):
     """
     Incomming
     """
-    _, _ = conn.recv_mc_packet()
+    packet_id, buf = conn.recv_mc_packet()
+    print(packet_id, buf.get_bytes())
 
 def handle_player_packet_ping(conn: TCPConnection, id: int):
     """

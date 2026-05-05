@@ -11,6 +11,7 @@ class HandshakingStatePacketID(Enum):
     
 class LoginStatePacketID(Enum):
     LoginStart = 0x00
+    Encryption = 0x01
     LoginSuccess = 0x02
     LoginAck = 0x03
     
