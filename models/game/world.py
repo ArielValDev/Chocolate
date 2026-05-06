@@ -54,7 +54,7 @@ def get_chunk_data_and_update_light_bytes_at(position: Position) -> Buffer:
         section.add_unsigned_byte(bpe)
         section.add_varint(2) # Array length
         section.add_varint(0) # Air
-        section.add_varint(8) # Stone
+        section.add_varint(9) # Stone
 
         for long in longs:
             section.add_long(long)

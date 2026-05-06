@@ -110,6 +110,10 @@ class OutgoingEntityPacket:
         player.game_state.food -= food_to_take
         packet.add_varint(player.game_state.food)
         packet.add_float(food_saturation)
+
+        if player.game_state.health <= 0:
+            EventManager.trigger(InGameEvent.PlayerDied, player)
+
         player.conn.send_mc_packet(packet, network.PlayStatePacketID.SetHealth.value)
 
     @staticmethod
@@ -121,6 +125,12 @@ class OutgoingEntityPacket:
         packet.add_varint(player.game_state.food)
         packet.add_float(food_saturation)
         player.conn.send_mc_packet(packet, network.PlayStatePacketID.SetHealth.value)
+
+    @staticmethod
+    def handle_packet_remove_entities(conn: TCPConnection, eids: list[int]):
+        packet = Buffer()
+        packet.add_prefixed_varint_array([(e, ) for e in eids])
+        conn.send_mc_packet(packet, network.PlayStatePacketID.RemoveEntities.value)
 
 class IncomingEntityPacket:
     @staticmethod

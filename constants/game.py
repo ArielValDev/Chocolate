@@ -88,6 +88,8 @@ class InGameEvent(Enum):
     PlayerConnected = 11
     PlayerDisconnected = 12
     ServerShutdown = 13
+    PlayerDied = 14
+    PlayerRespawn = 15
 
 class EntityType(Enum):
     Player = 155
@@ -101,3 +103,6 @@ class ChatFilterType(Enum):
     PassThrough = 0
     FullyFiltered = 1
     PartiallyFiltered = 2
+
+class ClientStatusAction(Enum):
+    PerformRespawn = 0

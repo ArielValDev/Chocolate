@@ -74,7 +74,7 @@ class DBManager:
             player.game_state.current_position.yaw,
             player.game_state.current_position.head_yaw,
             player.game_state.current_position.pitch,
-            player.game_state.health
+            player.game_state.health if player.game_state.health > 0 else 20.0
         )
 
         DBManager._execute_write(query, params)

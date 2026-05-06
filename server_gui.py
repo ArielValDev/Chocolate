@@ -2,15 +2,19 @@ from re import L
 import tkinter as tk
 from tkinter import Tk, scrolledtext, messagebox
 import threading
-import json
+import json, queue
 
 from constants import constants
 from constants.game import InGameEvent
 from models.events.event_manager import EventManager
 from chocolate import ChocolateServer
+from utils.logger import Logger
 
 class ServerGUI:
+    _instance = None
     def __init__(self, root: Tk, server: ChocolateServer):
+        ServerGUI._instance = self
+
         self.root = root
         self.server = server
         self.root.title("Chocolate Server Manager")
@@ -21,7 +25,8 @@ class ServerGUI:
         self._create_console_frame()
         self._create_players_frame()
         self._create_control_frame()
-
+        self._update_players_list()
+        self._check_logger_queue()
 
     def _create_config_frame(self):
         config_frame = tk.LabelFrame(self.root, text="Server Configuration", padx=10, pady=10)
@@ -32,34 +37,49 @@ class ServerGUI:
         curr_max = self.server.config.max_players
         self.max_players_entry.insert(0, str(curr_max))
         self.max_players_entry.grid(row=0, column=1, padx=5)
-        self.max_players_entry.bind("<Return>", lambda e: self._on_config_input_change("max_players", self.max_players_entry.get()))
+        self.max_players_entry.bind("<Return>", lambda e: self._on_config_input_change("max_players", self.max_players_entry))
+        self.max_players_entry.bind("<FocusOut>", lambda e: self._on_config_input_change("max_players", self.max_players_entry))
 
         tk.Label(config_frame, text="Render Distance:").grid(row=0, column=2, padx=5)
         self.render_distance_entry = tk.Entry(config_frame, width=10)
         curr_render = self.server.config.render_distance
         self.render_distance_entry.insert(0, str(curr_render))
         self.render_distance_entry.grid(row=0, column=3, padx=5)
-        self.render_distance_entry.bind("<Return>", lambda e: self._on_config_input_change("render_distance", self.render_distance_entry.get()))
+        self.render_distance_entry.bind("<Return>", lambda e: self._on_config_input_change("render_distance", self.render_distance_entry))
+        self.render_distance_entry.bind("<FocusOut>", lambda e: self._on_config_input_change("render_distance", self.render_distance_entry))
 
         tk.Label(config_frame, text="Port:").grid(row=0, column=4, padx=5)
         self.port_entry = tk.Entry(config_frame, width=10)
         curr_port = self.server.config.port
         self.port_entry.insert(0, str(curr_port))
         self.port_entry.grid(row=0, column=5, padx=5)
-        self.port_entry.bind("<Return>", lambda e: self._on_config_input_change("port", self.port_entry.get()))
+        self.port_entry.bind("<Return>", lambda e: self._on_config_input_change("port", self.port_entry))
+        self.port_entry.bind("<FocusOut>", lambda e: self._on_config_input_change("port", self.port_entry))
 
-    def _on_config_input_change(self, config_key: str, input_value: str):
+    def _on_config_input_change(self, config_key: str, entry_widget: tk.Entry):
+        input_value = entry_widget.get()
+        
+        is_valid = True
+        value = -1
+
         if getattr(self.server, 'is_running', False):
-            return
-        
-        if not input_value.isdigit(): return
-        value = int(input_value)
-
-        if config_key == "port" and value not in range(10000, 40001): return
+            is_valid = False
+        elif not input_value.isdigit():
+            is_valid = False
         else:
-            if value not in range(2, 13): return
+            value = int(input_value)
+            if config_key == "port" and value not in range(10000, 40001):
+                is_valid = False
+            elif config_key != "port" and value not in range(1, 13):
+                is_valid = False
         
-        self.server.config.change_config(constants.CONFIG_FILE_PATH, config_key, value)
+        if is_valid:
+            self.server.config.change_config(constants.CONFIG_FILE_PATH, config_key, value)
+        
+        else:
+            valid_value = getattr(self.server.config, config_key)
+            entry_widget.delete(0, tk.END)
+            entry_widget.insert(0, str(valid_value))
 
     def _create_console_frame(self):
         main_console_frame = tk.Frame(self.root)
@@ -86,6 +106,16 @@ class ServerGUI:
 
         self.players_listbox = tk.Listbox(players_frame, width=20)
         self.players_listbox.pack(fill=tk.BOTH, expand=True)
+
+    def _update_players_list(self):
+        if getattr(self.server, 'is_running', False):
+            self.players_listbox.delete(0, tk.END)
+
+            for player in self.server.players:
+                player_name = player.username
+                self.players_listbox.insert(tk.END, player_name)
+
+        self.root.after(1000, self._update_players_list)
 
     def _create_control_frame(self):
         control_frame = tk.Frame(self.right_container)
@@ -118,3 +148,32 @@ class ServerGUI:
 
     def _run_server(self):
         self.server.start()
+
+    def _check_logger_queue(self):
+        try:
+            while True:
+                msg = Logger.gui_queue.get_nowait()
+                
+                if msg.startswith("CHAT:"):
+                    parts = msg.split(":", 2)
+                    if len(parts) == 3:
+                        self._write_to_chat(parts[1], parts[2])
+                elif msg.startswith("SYS:"):
+                    self._write_to_console(msg[4:])
+                    
+        except queue.Empty:
+            pass
+
+        self.root.after(100, self._check_logger_queue)
+
+    def _write_to_console(self, message: str):
+        self.console_text.config(state='normal')
+        self.console_text.insert(tk.END, message + "\n")
+        self.console_text.see(tk.END)
+        self.console_text.config(state='disabled')
+
+    def _write_to_chat(self, sender: str, message: str):
+        self.chat_text.config(state='normal')
+        self.chat_text.insert(tk.END, f"[{sender}] {message}\n")
+        self.chat_text.see(tk.END)
+        self.chat_text.config(state='disabled')

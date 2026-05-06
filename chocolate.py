@@ -59,9 +59,15 @@ class ChocolateServer:
             json.dump(self.config.get_json(), f)
 
     def handle_player(self, player: Player):
-        player.connect_to_world()
-        EventManager.trigger(game.InGameEvent.PlayerConnected, player)
-        player.load_world()
+        try:
+            player.connect_to_world()
+            #EventManager.trigger(game.InGameEvent.PlayerConnected, player)
+            Logger.info(f"{player.username} joined the world!")
+            player.load_world()
+        except:
+            Logger.error("Failed to load player. Please try again...")
+            player.disconnect_player()
+            return
         player.game_loop()
 
     def start(self):
@@ -72,10 +78,16 @@ class ChocolateServer:
 
         self.is_running = True
         while self.is_running:
-            cli, addr = self.serv.accept()
-            player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, 2, 20, 20))
-            self.players.append(player)
-            threading.Thread(target=self.handle_player, args=(player, )).start()
+            try:
+                cli, addr = self.serv.accept()
+                if len(self.players) == self.config.max_players:
+                    cli.close()
+                    continue
+                player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, 2, 20, 20))
+                self.players.append(player)
+                threading.Thread(target=self.handle_player, args=(player, )).start()
+            except:
+                pass
 
     def save_and_shutdown(self):
         for player in self.players:
@@ -83,4 +95,10 @@ class ChocolateServer:
             EventManager.trigger(game.InGameEvent.ServerShutdown, player, "Server closed")
 
         Logger.info("Saving players before shutting down...")
+        try:
+            self.serv.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass 
+        finally:
+            self.serv.close()
         Logger.info("Server is closing...")

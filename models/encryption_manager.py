@@ -1,4 +1,4 @@
-import os
+import secrets
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -19,7 +19,7 @@ class EncryptionManager:
 
     @staticmethod
     def generate_verify_token() -> bytes:
-        return os.urandom(4)
+        return secrets.token_bytes(4)
 
     @staticmethod
     def decrypt_shared_secret(encrypted_secret: bytes) -> bytes:

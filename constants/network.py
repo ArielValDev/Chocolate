@@ -32,6 +32,7 @@ class PlayStatePacketID(Enum):
     ChatMessage = 0x08
     ChunkBatchReceived = 0x0A
     ChunkBatchFinished = 0x0B
+    ClientStatus = 0x0B
     ChunkBatchStart = 0x0C
     ClientTickEnd = 0x0C
     CloseContainer = 0x12
@@ -61,6 +62,7 @@ class PlayStatePacketID(Enum):
     PlayerChatMessage = 0x3F
     PlayerInfoUpdate = 0x44
     SynchronizePlayerPosition = 0x46
+    RemoveEntities = 0x4B
     Respawn = 0x50
     SetHeadRotation = 0x51
     SetCenterChunk = 0x5C

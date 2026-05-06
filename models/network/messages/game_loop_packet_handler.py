@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING
 
+from constants.constants import GeneratorIDs
 from models.network.messages.entity_packets import IncomingEntityPacket
+from utils.id_generator import IDGenerator
+from utils.logger import Logger
+from utils.player import update_joined_player_others_exist, update_others_player_joined
 from utils.utils import float_to_angle
 if TYPE_CHECKING:
     from models.player import Player
@@ -116,6 +120,27 @@ class OutgoingGameLoopPacketHandler:
     
     
 class IncomingGameLoopPacketHandler:
+
+    @staticmethod
+    def _handle_in_game_packet_confirm_teleportation(buf: Buffer, player: "Player"):
+        tid = buf.consume_varint()
+        if tid not in player.meta_data.awaiting_teleport_ids:
+            EventManager.trigger(game.InGameEvent.PlayerDisconnected, player)
+            return
+        player.meta_data.awaiting_teleport_ids.remove(tid)
+        
+
+    @staticmethod
+    def _handle_in_game_packet_client_status(buf: Buffer, player: "Player"):
+        action_id = buf.consume_varint()
+        if action_id == game.ClientStatusAction.PerformRespawn.value:
+            tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
+            player.meta_data.awaiting_teleport_ids.append(tid)
+            player.game_state.current_position = EntityPosition(8, 1, 8, 0, 0, True, False)
+            EventManager.trigger(game.InGameEvent.PlayerRespawn, player, tid)
+            player.load_world()
+            update_others_player_joined(player)
+            update_joined_player_others_exist(player)
 
     @staticmethod
     def _handle_in_game_packet_chunk_batch_recieved(buf: Buffer, player: "Player"):
@@ -248,6 +273,7 @@ class IncomingGameLoopPacketHandler:
         ack: BitField = BitField()
         ack.set(int.from_bytes(buf.consume_raw(3)))
         checksum: int = buf.consume_byte()
+        Logger.chat(player.username, message)
         for other_p in PlayersManager.get_ranged_players(player, True):
             EventManager.trigger(game.InGameEvent.ChatMessage, other_p, player, message, timestamp)
 
@@ -292,5 +318,7 @@ PACKET_HANDLER: dict[int, Callable[[Buffer, "Player"], Any]] = {
     network.PlayStatePacketID.CloseContainer.value: IncomingGameLoopPacketHandler._handle_in_game_packet_close_container,
     network.PlayStatePacketID.ChunkBatchReceived.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chunk_batch_recieved,
     network.PlayStatePacketID.Interact.value: IncomingEntityPacket._handle_in_entity_packet_interact,
-    network.PlayStatePacketID.ChatMessage.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chat_message
+    network.PlayStatePacketID.ChatMessage.value: IncomingGameLoopPacketHandler._handle_in_game_packet_chat_message,
+    network.PlayStatePacketID.ClientStatus.value: IncomingGameLoopPacketHandler._handle_in_game_packet_client_status,
+    network.PlayStatePacketID.ConfirmTeleportation.value: IncomingGameLoopPacketHandler._handle_in_game_packet_confirm_teleportation
     }

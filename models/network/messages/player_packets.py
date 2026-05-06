@@ -66,7 +66,7 @@ def handle_player_packet_confirm_teleportation(conn: TCPConnection, state: netwo
     if buf is None:
         return
     if packet_id != network.PlayStatePacketID.ConfirmTeleportation.value or state != network.ConnectionState.Play:
-        raise ConnectionError("Unexpected packet ID or state for confirm teleportation")
+        raise ConnectionError(f"Unexpected packet ID {packet_id} or state for confirm teleportation")
     
     tid = buf.consume_varint()
     if tid not in awaiting_tids: raise ValueError("Invalid teleport confirmation")
@@ -78,7 +78,7 @@ def handle_player_packet_set_player_position_and_rotation(conn: TCPConnection, s
     """
     packet_id, _ = conn.recv_mc_packet()
     if packet_id != network.PlayStatePacketID.SetPlayerPositionAndRotation.value or state != network.ConnectionState.Play:
-        raise ConnectionError("Unexpected packet ID or state for set player position and rotation")
+        raise ConnectionError(f"Unexpected packet ID {packet_id} or state for set player position and rotation")
     
 def handle_player_packet_player_info_update(conn: TCPConnection, actions: BitField, uuid: UUID, players: list["Player"], game_mode: int, should_be_listed: bool, ping: int, display_name: str, priority: int, visible_hat: bool):
     """
@@ -170,9 +170,9 @@ def handle_player_packet_player_loaded(conn: TCPConnection, state: network.Conne
     """
     packet_id, _ = conn.recv_mc_packet()
     if packet_id != network.PlayStatePacketID.PlayerLoaded.value and packet_id != network.PlayStatePacketID.ClientTickEnd.value or state != network.ConnectionState.Play:
-        raise ConnectionError("Unexpected packet ID or state for player loaded")
+        raise ConnectionError(f"Unexpected packet ID {packet_id} or state for player loaded")
 
-def handle_player_packet_respawn(conn: TCPConnection, dimension_type: int, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str, death_location: int, portal_cooldown: int, sea_level: int, data_kept: int):
+def handle_player_packet_respawn(conn: TCPConnection, dimension_type: int, dimension_name: str, hashed_seed: int, game_mode: int, previouse_game_mode: int, is_debug: bool, is_flat: bool, has_death_location: bool, death_dimention_name: str | None, death_location: int, portal_cooldown: int, sea_level: int, data_kept: int):
     respawn_packet = Buffer()
 
     respawn_packet.add_varint(dimension_type)
@@ -183,8 +183,9 @@ def handle_player_packet_respawn(conn: TCPConnection, dimension_type: int, dimen
     respawn_packet.add_boolean(is_debug)
     respawn_packet.add_boolean(is_flat)
     respawn_packet.add_boolean(has_death_location)
-    respawn_packet.add_optional_string(death_dimention_name)
-    respawn_packet.add_long(death_location)
+    if has_death_location:
+        respawn_packet.add_optional_string(death_dimention_name)
+        respawn_packet.add_long(death_location)
     respawn_packet.add_varint(portal_cooldown)
     respawn_packet.add_varint(sea_level)
     respawn_packet.add_byte(data_kept)
@@ -198,7 +199,7 @@ def handle_player_packet_chunk_batch_received(conn: TCPConnection, state: networ
     packet_id, data = conn.recv_mc_packet()
 
     if packet_id != network.PlayStatePacketID.ChunkBatchReceived.value or state != network.ConnectionState.Play:
-        raise ConnectionError(f"Unexpected packet ID or state for chunk batch recieve")
+        raise ConnectionError(f"Unexpected packet ID {packet_id} or state for chunk batch recieve")
 
     return data.consume_float()
 

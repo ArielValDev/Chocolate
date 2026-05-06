@@ -1,7 +1,8 @@
 from constants.constants import LOG_LEVEL
+import queue
 
 class Logger:
-
+    gui_queue: queue.Queue[str] = queue.Queue()
     VERBOSE_PREFIX = "\x1b[90m[=]"
     DEBUG_PREFIX = "\x1b[90m[-]"
     INFO_PREFIX  = "\x1b[36m[*]\x1b[97m"
@@ -23,6 +24,7 @@ class Logger:
     def info(message: str) -> None:
         if LOG_LEVEL.value > 2: return
         print(f"{Logger.INFO_PREFIX} {message}{Logger.RESET}")
+        Logger.gui_queue.put(f"SYS:[*] {message}")
 
     @staticmethod
     def warn(message: str) -> None:
@@ -33,3 +35,7 @@ class Logger:
     def error(message: str) -> None:
         if LOG_LEVEL.value > 4: return
         print(f"{Logger.ERROR_PREFIX} {message}{Logger.RESET}")
+
+    @staticmethod
+    def chat(sender: str, message: str):
+        Logger.gui_queue.put(f"CHAT:{sender}:{message}")

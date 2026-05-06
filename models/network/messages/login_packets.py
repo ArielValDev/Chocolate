@@ -109,9 +109,7 @@ def handle_login_packet_login_ack(conn: TCPConnection, state: network.Connection
     """
     Incoming
     """
-    print(2)
     packet_id, _ = conn.recv_mc_packet()
-    print(2)
     if packet_id != network.LoginStatePacketID.LoginAck.value or state != network.ConnectionState.Login:
         raise ConnectionError(f"Unexpected packet ID: {packet_id} or state {state} for login acknowledge")
     

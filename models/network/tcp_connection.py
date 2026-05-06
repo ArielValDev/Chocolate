@@ -6,6 +6,7 @@ from models.buffer import Buffer
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.decrepit.ciphers.modes import CFB8
+from threading import Lock
 
 class TCPConnection:
     def __init__(self, addr: str, socket: socket.socket):
@@ -13,6 +14,7 @@ class TCPConnection:
         self.socket = socket
         self.encryptor = None
         self.decryptor = None
+        self.send_lock = Lock()
     
     def enable_encryption(self, shared_secret: bytes):
         cipher = Cipher(
@@ -24,14 +26,15 @@ class TCPConnection:
         self.decryptor = cipher.decryptor()
 
     def _send(self, msg: bytes):
-        if self.encryptor:
-            msg = self.encryptor.update(msg)
+        with self.send_lock:
+            if self.encryptor:
+                msg = self.encryptor.update(msg)
 
-        try:
-            self.socket.sendall(msg)
-        except ConnectionAbortedError:
-            #Logger.warn(f"Connection aborted while trying to send to {self.addr[0]}")
-            pass
+            try:
+                self.socket.sendall(msg)
+            except (ConnectionAbortedError, ConnectionResetError, OSError):
+                #Logger.warn(f"Connection aborted while trying to send to {self.addr[0]}")
+                pass
 
     def _recv(self, size: int) -> bytes:
         data = bytearray()
@@ -52,10 +55,12 @@ class TCPConnection:
         size = bytearray()
         try:
             while True:
-                byte = self._recv(1) # The varint of the length of message
+                byte = self.socket.recv(1) # The varint of the length of message
+                if self.decryptor:
+                    byte = self.decryptor.update(byte)
                 size.extend(byte)
-                if (byte[0] & VARINT_CONTINUE_BIT) == 0: break
-        except ConnectionAbortedError:
+                if (int.from_bytes(byte) & VARINT_CONTINUE_BIT) == 0: break
+        except (ConnectionAbortedError, ConnectionResetError):
             return 0, None
         if len(size) == 0:
             return 0, None

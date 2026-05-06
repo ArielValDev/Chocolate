@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Callable, Generator
 if TYPE_CHECKING:
     from models.player import Player
 from typing import Any
@@ -20,3 +20,8 @@ class PlayersManager:
             for player in from_player.server_interface.get_all_players():
                 if player != from_player:
                     yield player
+
+    @staticmethod
+    def send_to_players(players: list["Player"], func: Callable[[Any], None], *args: Any):
+        for player in players:
+            func(player.conn, *args)

@@ -74,12 +74,8 @@ class Player:
         encryption_response = handle_login_packet_encryption_response(self.conn, self.connection_state)
         self.conn.enable_encryption(EncryptionManager.decrypt_shared_secret(encryption_response.shared_secret))
 
-        print(1)
         handle_login_packet_login_success(self.conn, self.uuid, self.username)
-        print("__________________________________________")
         handle_login_packet_login_ack(self.conn, self.connection_state)
-        print(1)
-
 
         self.connection_state = ConnectionState.Configuration
 
@@ -177,7 +173,7 @@ class Player:
         except Exception:
             pass
 
-    def __eq__(self, other: "Player") -> bool:
+    def __eq__(self, other: "Player") -> bool: # type: ignore
         return self.eid == other.eid and self.uuid == other.uuid
 
     def __hash__(self) -> int:
