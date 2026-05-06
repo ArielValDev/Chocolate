@@ -106,3 +106,7 @@ class ChatFilterType(Enum):
 
 class ClientStatusAction(Enum):
     PerformRespawn = 0
+
+class EntityStatus(Enum):
+    DeathSoundAnimation = 3
+    DeathSmokeParticles = 60

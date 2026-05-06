@@ -113,6 +113,13 @@ class OutgoingGameLoopPacketHandler:
         target.conn.send_mc_packet(packet, network.PlayStatePacketID.PlayerChatMessage.value)
 
     @staticmethod
+    def handle_packet_combat_death(player: "Player", message: str):
+        packet = Buffer()
+        packet.add_varint(player.eid)
+        packet.add_text_component(message)
+        player.conn.send_mc_packet(packet, network.PlayStatePacketID.CombatDeath.value)
+
+    @staticmethod
     def handle_disconnect(player: "Player", reason: str):
         packet = Buffer()
         packet.add_text_component(reason)
@@ -134,6 +141,7 @@ class IncomingGameLoopPacketHandler:
     def _handle_in_game_packet_client_status(buf: Buffer, player: "Player"):
         action_id = buf.consume_varint()
         if action_id == game.ClientStatusAction.PerformRespawn.value:
+            player.game_state.is_dead = False
             tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
             player.meta_data.awaiting_teleport_ids.append(tid)
             player.game_state.current_position = EntityPosition(8, 1, 8, 0, 0, True, False)
@@ -298,7 +306,8 @@ class IncomingGameLoopPacketHandler:
         if handler:
             handler(buf, player)
         else:
-            print(f"Unhandled packet: {hex(packet_id)}")
+            #print(f"Unhandled packet: {hex(packet_id)}")
+            pass
 
         return True
 

@@ -1,3 +1,4 @@
+import time
 from typing import TYPE_CHECKING
 from constants.constants import *
 from constants.game import *
@@ -106,15 +107,20 @@ class OutgoingEntityPacket:
     def handle_packet_set_health__damage(player: "Player", health_to_take: float, food_to_take: int = 0, food_saturation: float = 5.0):
         packet = Buffer()
         player.game_state.health -= health_to_take
+
+        if player.game_state.health <= 0.0:
+            player.game_state.health = 0.0
+
         packet.add_float(player.game_state.health)
         player.game_state.food -= food_to_take
         packet.add_varint(player.game_state.food)
         packet.add_float(food_saturation)
 
-        if player.game_state.health <= 0:
+        player.conn.send_mc_packet(packet, network.PlayStatePacketID.SetHealth.value)
+        if player.game_state.health <= 0 and not player.game_state.is_dead:
+            player.game_state.is_dead = True
             EventManager.trigger(InGameEvent.PlayerDied, player)
 
-        player.conn.send_mc_packet(packet, network.PlayStatePacketID.SetHealth.value)
 
     @staticmethod
     def handle_packet_set_health(player: "Player", health: float, food: int = 0, food_saturation: float = 5.0):
@@ -131,6 +137,13 @@ class OutgoingEntityPacket:
         packet = Buffer()
         packet.add_prefixed_varint_array([(e, ) for e in eids])
         conn.send_mc_packet(packet, network.PlayStatePacketID.RemoveEntities.value)
+
+    @staticmethod
+    def handle_packet_entity_event(conn: TCPConnection, eid: int, entity_status: int):
+        packet = Buffer()
+        packet.add_int(eid)
+        packet.add_byte(entity_status)
+        conn.send_mc_packet(packet, network.PlayStatePacketID.EntityEvent.value)
 
 class IncomingEntityPacket:
     @staticmethod
@@ -150,6 +163,13 @@ class IncomingEntityPacket:
 
         if type == InteractType.Attack.value:
             attacked_player = next((p for p in attacker.server_interface.get_all_players() if p.eid == eid))
+
+            if not attacked_player:
+                return
+
+            if attacked_player.game_state.is_dead:
+                return
+
             data = attacker.server_interface.get_registry_data()
             
             source_type_id = data["minecraft:damage_type"].index("minecraft:player_attack")

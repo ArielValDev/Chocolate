@@ -44,6 +44,7 @@ class PlayerGameState:
     render_distance: int
     health: float
     food: int
+    is_dead: bool
 
 
 class Player:

@@ -43,6 +43,7 @@ class PlayStatePacketID(Enum):
     SetPlayerPositionAndRotation = 0x1E
     SetPlayerRotation = 0x1F
     Disconnect = 0x20
+    EntityEvent = 0x22
     UnloadChunk = 0x25
     GameEvent = 0x26
     PlayerAction = 0x28
@@ -60,6 +61,7 @@ class PlayStatePacketID(Enum):
     SwingArm = 0x3C
     UseItemOn = 0x3F
     PlayerChatMessage = 0x3F
+    CombatDeath = 0x42
     PlayerInfoUpdate = 0x44
     SynchronizePlayerPosition = 0x46
     RemoveEntities = 0x4B

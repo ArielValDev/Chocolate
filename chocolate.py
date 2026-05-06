@@ -83,7 +83,7 @@ class ChocolateServer:
                 if len(self.players) == self.config.max_players:
                     cli.close()
                     continue
-                player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, 2, 20, 20))
+                player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, self.config.render_distance, 20, 20, False))
                 self.players.append(player)
                 threading.Thread(target=self.handle_player, args=(player, )).start()
             except:
