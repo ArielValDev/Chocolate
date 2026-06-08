@@ -38,6 +38,34 @@ class Position:
                 self.dimension,
                 PositionType.Block
             )
+    
+    def to_section(self) -> "Position":
+        if self.type == PositionType.Block:
+            return Position(
+                self.x >> 4,
+                self.y >> 4,
+                self.z >> 4,
+                self.dimension,
+                PositionType.Chunk
+            )
+
+        elif self.type == PositionType.Chunk:
+            return Position(
+                self.x,
+                self.y >> 4, 
+                self.z,
+                self.dimension,
+                PositionType.Chunk
+            )
+
+        else:
+            return Position(
+                self.x << 5,
+                self.y,
+                self.z << 5,
+                self.dimension,
+                PositionType.Chunk
+            )
 
     def to_chunk(self) -> "Position":
         if self.type == PositionType.Chunk:
@@ -94,7 +122,7 @@ class Position:
         )
 
     def chunk_local(self) -> tuple[int, int, int]:
-        """Block position inside chunk (0–15)."""
+        """Block position inside chunk (0-15)."""
         block = self.to_block()
 
         return (
@@ -104,13 +132,22 @@ class Position:
         )
 
     def region_local(self) -> tuple[int, int]:
-        """Chunk position inside region (0–31)."""
+        """Chunk position inside region (0-31)."""
         chunk = self.to_chunk()
 
         return (
             chunk.x & 31,
             chunk.z & 31
         )
+    
+    def to_index(self):
+        block = self.to_block()
+
+        local_x = block.x & 15
+        local_y = block.y & 15
+        local_z = block.z & 15
+
+        return (local_y << 8) | (local_z << 4) | local_x
 
     def __repr__(self):
         return f"Position(x={self.x}, y={self.y}, z={self.z}, dim={self.dimension}, type={self.type.name})"
@@ -158,5 +195,8 @@ class EntityPosition():
         delta_vec = self.delta_vector(to)
         max_element = max(abs(delta_vec[0]), abs(delta_vec[1]), abs(delta_vec[2]), 1)
         return (delta_vec[0] / max_element * factor, delta_vec[1] / max_element * factor, delta_vec[2] / max_element * factor)
+
+    def __repr__(self):
+            return f"EntityPosition(x={self.x}, y={self.y}, z={self.z})"
 
         

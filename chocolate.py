@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from constants import constants
 from constants import game
 from constants.game import Gamemode
@@ -11,6 +12,7 @@ from models.player import OfflineState, Player, PlayerGameState
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
 from models.types.position import EntityPosition, Position, PositionType
+from models.world.world import World
 from utils.client_parser import get_tags_into_file
 from utils.id_generator import IDGenerator
 from utils.logger import Logger
@@ -32,8 +34,12 @@ class ChocolateServer:
             get_world_age = lambda: self.world_age,
             get_config = lambda: self.config,
             get_registry_data = lambda: self.registry_data,
-            remove_player = lambda player: self.players.remove(player)
+            remove_player = lambda player: self._remove_player(player),
+            get_world = lambda: self.world,
+            is_running = lambda: self.is_running
         )
+        self.world = World(Path("./" + constants.ROOT + "/world"), self.communicator)
+
     
     def init(self):
         Logger.info("Fetching registries and tags...")
@@ -53,22 +59,25 @@ class ChocolateServer:
         IDGenerator.add_generator(constants.GeneratorIDs.KeepAliveID)
         event_subscriber.subscribe_events()
 
+        threading.Timer(constants.SAVE_INTERVAL, self.world.save).start()
+
         Logger.info("Loading config...")
         if self.config.load_file(constants.CONFIG_FILE_PATH): return
         with open(constants.CONFIG_FILE_PATH, "w") as f:
             json.dump(self.config.get_json(), f)
 
+
     def handle_player(self, player: Player):
-        try:
-            player.connect_to_world()
+        #try:
+            player.connect_to_world_v2()
             #EventManager.trigger(game.InGameEvent.PlayerConnected, player)
             Logger.info(f"{player.username} joined the world!")
             player.load_world()
-        except:
-            Logger.error("Failed to load player. Please try again...")
-            player.disconnect_player()
-            return
-        player.game_loop()
+        #except:
+            # Logger.error("Failed to load player. Please try again...")
+            # player.disconnect_player()
+            # return
+            player.game_loop()
 
     def start(self):
         Logger.info(f"Starting server on address {constants.IP}:{self.config.port}...")
@@ -83,12 +92,16 @@ class ChocolateServer:
                 if len(self.players) == self.config.max_players:
                     cli.close()
                     continue
-                player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, self.config.render_distance, 20, 20, False))
+                player = Player(TCPConnection(addr, cli), self.communicator, PlayerGameState(OfflineState(Position(8, 1, 8), 20, 20), False, Gamemode.Survival, EntityPosition(8, 1, 8, 0, 0, True, False), 0, self.config.render_distance, 20, 20, False))
                 self.players.append(player)
                 threading.Thread(target=self.handle_player, args=(player, )).start()
             except:
                 pass
 
+    def _remove_player(self, player: "Player"):
+        if player in self.players:
+            self.players.remove(player)
+            
     def save_and_shutdown(self):
         for player in self.players:
             DBManager.save_player(player)

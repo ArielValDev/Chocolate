@@ -1,5 +1,7 @@
 from enum import Enum
 
+TIME_TO_MINE = 0.2 # 0.9
+
 class TeleportFlag(Enum):
     RelativeX = 0x0001
     RelativeY = 0x0002
@@ -90,6 +92,12 @@ class InGameEvent(Enum):
     ServerShutdown = 13
     PlayerDied = 14
     PlayerRespawn = 15
+    BlockInteraction = 16
+    BlockUpdate = 17
+
+class WorldEvent(Enum):
+    BlockChanged = 1
+    WorldSaved = 2
 
 class EntityType(Enum):
     Player = 155
@@ -110,3 +118,8 @@ class ClientStatusAction(Enum):
 class EntityStatus(Enum):
     DeathSoundAnimation = 3
     DeathSmokeParticles = 60
+
+class PlayerActionStatus(Enum):
+    StartedDigging = 0
+    CancelledDigging = 1
+    FinishedDigging = 2

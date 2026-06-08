@@ -12,7 +12,7 @@ class LogLevel(Enum):
     Warning = 3
     Error = 4
 
-IP = "127.0.0.1"
+IP = "0.0.0.0"
 VERSION = "1.21.11"
 ROOT = "server_files"
 CONFIG_FILE_PATH = f"{ROOT}/config.json"
@@ -21,6 +21,9 @@ VARINT_SEGMENT_BITS = 0x7F
 VARINT_CONTINUE_BIT = 0x80
 LOG_LEVEL = LogLevel.Verbose
 NULL = 0x00
+ENCRYPTING = False
+
+SAVE_INTERVAL = 15
 
 KNOWN_PACKS = [("minecraft", "core", "1.21.11")]
 

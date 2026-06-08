@@ -27,6 +27,9 @@ class PlayerMetaData:
     loaded_chunks: list[Position] = field(default_factory=list) # type: ignore
     last_chunk: Position | None = None 
     global_chat_index: int = 0
+    mining_target: Position | None = None
+    mining_start_time: float = 0.0
+    last_broadcasted_stage: int = -1
 
 @dataclass
 class OfflineState:
@@ -37,7 +40,7 @@ class OfflineState:
 @dataclass
 class PlayerGameState:
     offline_state: OfflineState
-
+    is_loaded: bool
     gamemode: Gamemode
     current_position: EntityPosition
     current_slot: int
@@ -59,6 +62,44 @@ class Player:
         self.game_state = game_state # TODO should get the game mode from the server (the server gets the game mode from the config file)
         self.keep_alive_thread = None
 
+    def connect_to_world_v2(self):
+        from models.network.messages.login_packets_v2 import process_login_phase
+
+        # 1. הפעלת לולאת הרשת הדינמית - נשארת כאן עד שהשחקן במצב Play
+        success = process_login_phase(self)
+        if not success:
+            self.disconnect_player()
+            return
+
+        # 2. אם הגענו לכאן, השחקן רשמית ב-Play State!
+        exists = DBManager.load_player_data(self)
+
+        # שולחים את הפאקט הראשי של ההתחברות לעולם
+        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429607, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
+
+        # עדכון חיים ראשוני
+        OutgoingEntityPacket.handle_packet_set_health(self, self.game_state.health, self.game_state.food)
+
+        # עדכון שחקנים ב-TAB (Player Info)
+        actions = BitField()
+        actions.set(PlayerAction.AddPlayer.value)
+        actions.set(PlayerAction.UpdateGameMode.value)
+        actions.set(PlayerAction.UpdateListed.value)
+        actions.set(PlayerAction.UpdateLatency.value)
+        actions.set(PlayerAction.UpdateDisplayName.value)
+        actions.set(PlayerAction.UpdateListPriority.value)
+        actions.set(PlayerAction.UpdateHat.value)
+        handle_player_packet_player_info_update(self.conn, actions, self.uuid, self.server_interface.get_all_players(), self.game_state.gamemode.value, True, 100, self.username, 1, True)
+
+        # שולחים את מיקום השחקן (Teleport), **בלי להיתקע ולחכות לאישור שלו!**
+        # הלולאה הרגילה ב-game_loop תקלוט את ה-ConfirmTeleportation כשהוא יגיע!
+        tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
+        self.meta_data.awaiting_teleport_ids.append(tid)
+        handle_player_packet_synchronize_player_position(self.conn, tid, self.game_state.current_position.x, self.game_state.current_position.y, self.game_state.current_position.z, 0, 0, 0, self.game_state.current_position.yaw, self.game_state.current_position.pitch, BitField())
+
+        if not exists: 
+            DBManager.save_player(self)
+
     def connect_to_world(self):
         handle_login_packet_handshake(self.conn, self.connection_state)
         
@@ -69,11 +110,11 @@ class Player:
         self.uuid = user_data.uuid
         exists = DBManager.load_player_data(self)
 
-        public_key = EncryptionManager.public_key_bytes
-        verify_token = EncryptionManager.generate_verify_token()
-        handle_login_packet_encryption_request(self.conn, public_key, verify_token, False)
-        encryption_response = handle_login_packet_encryption_response(self.conn, self.connection_state)
-        self.conn.enable_encryption(EncryptionManager.decrypt_shared_secret(encryption_response.shared_secret))
+        # public_key = EncryptionManager.public_key_bytes
+        # verify_token = EncryptionManager.generate_verify_token()
+        # handle_login_packet_encryption_request(self.conn, public_key, verify_token, False)
+        # encryption_response = handle_login_packet_encryption_response(self.conn, self.connection_state)
+        # self.conn.enable_encryption(EncryptionManager.decrypt_shared_secret(encryption_response.shared_secret))
 
         handle_login_packet_login_success(self.conn, self.uuid, self.username)
         handle_login_packet_login_ack(self.conn, self.connection_state)
@@ -135,11 +176,11 @@ class Player:
                 chunk = Position(cx * 16, 0, cz * 16).to_chunk()
                 self.meta_data.loaded_chunks.append(chunk)
                 handle_player_packet_chunk_data_and_update_light(
-                    self.conn,
+                    self,
                     chunk
                 )
         OutgoingGameLoopPacketHandler.chunk_batch_finished(self.conn, c)
-
+        self.game_state.is_loaded = True
         # handle_player_packet_chunk_batch_received(self.conn, self.connection_state)
 
         # handle_player_packet_player_loaded(self.conn, self.connection_state)

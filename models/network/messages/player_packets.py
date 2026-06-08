@@ -28,7 +28,7 @@ def debug_recieve(conn: TCPConnection):
     Incomming
     """
     packet_id, buf = conn.recv_mc_packet()
-    print(packet_id, buf.get_bytes())
+    Logger.debug(packet_id, buf.get_bytes())
 
 def handle_player_packet_ping(conn: TCPConnection, id: int):
     """
@@ -147,22 +147,9 @@ def handle_player_packet_game_event(conn: TCPConnection, event: int, value: floa
     game_event.add_float(value)
     conn.send_mc_packet(game_event, network.PlayStatePacketID.GameEvent.value)
 
-# TODO: world generation
-@dataclass
-class PalettedContainer:
-    bits_per__entry: int
-    palette: list[int]
-    data_array: list[int]
-
-@dataclass
-class Section:
-    block_count: int
-    block_states: PalettedContainer
-    biomes: PalettedContainer
-
-def handle_player_packet_chunk_data_and_update_light(conn: TCPConnection, position: Position):
-    chunk_and_light_data = get_chunk_data_and_update_light_bytes_at(position)
-    conn.send_mc_packet(chunk_and_light_data, network.PlayStatePacketID.ChunkDataAndLightUpdate.value)
+def handle_player_packet_chunk_data_and_update_light(player: "Player", position: Position):
+    chunk_and_light_data = get_chunk_data_and_update_light_bytes_at(position, player.server_interface)
+    player.conn.send_mc_packet(chunk_and_light_data, network.PlayStatePacketID.ChunkDataAndLightUpdate.value)
 
 def handle_player_packet_player_loaded(conn: TCPConnection, state: network.ConnectionState):
     """

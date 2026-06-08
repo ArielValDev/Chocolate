@@ -2,6 +2,8 @@ import json
 import os
 from typing import Any
 
+from utils.logger import Logger
+
 class ServerConfig:
 
     def __init__(self):
@@ -32,7 +34,7 @@ class ServerConfig:
                 with open(path, "w") as f:
                     json.dump(self.get_json(), f)
             except Exception as e:
-                print(f"Error saving config: {e}")
+                Logger.error(f"Error saving config: {e}")
 
     def get_json(self) -> dict[str, Any]:
         return {

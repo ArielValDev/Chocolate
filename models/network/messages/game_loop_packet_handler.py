@@ -1,4 +1,7 @@
+import time
 from typing import TYPE_CHECKING
+
+from numpy import block
 
 from constants.constants import GeneratorIDs
 from models.network.messages.entity_packets import IncomingEntityPacket
@@ -57,6 +60,8 @@ class OutgoingGameLoopPacketHandler:
 
     @staticmethod
     def update_player_chunks(player: "Player", moving_player: "Player", dx: int, dy: int, dz: int):
+        if not player.meta_data.loaded_chunks:
+            return
         current_chunk: Position = player.game_state.current_position.to_chunk()
 
         if player.meta_data.last_chunk == current_chunk:
@@ -85,10 +90,26 @@ class OutgoingGameLoopPacketHandler:
         OutgoingGameLoopPacketHandler.chunk_batch_start(player.conn)
         to_load_sorted = sorted(to_load, key=lambda c: (c.x - current_chunk.x) ** 2 + (c.z - current_chunk.z) ** 2)
         for chunk in to_load_sorted:
-            chunk_buf = world.get_chunk_data_and_update_light_bytes_at(chunk)
+            chunk_buf = world.get_chunk_data_and_update_light_bytes_at(chunk, player.server_interface)
             player.conn.send_mc_packet(chunk_buf, network.PlayStatePacketID.ChunkDataAndLightUpdate.value)
             player.meta_data.loaded_chunks.append(chunk)
         OutgoingGameLoopPacketHandler.chunk_batch_finished(player.conn, len(to_load_sorted))
+
+
+    @staticmethod
+    def update_mining_progress(player: "Player"):
+        if player.meta_data.mining_target is not None:
+            time_mining = time.time() - player.meta_data.mining_start_time
+            progress = time_mining / game.TIME_TO_MINE
+            
+            if progress > 1.0:
+                progress = 1.0
+                
+            current_stage = int(progress * 9)
+            
+            if current_stage != player.meta_data.last_broadcasted_stage:
+                player.meta_data.last_broadcasted_stage = current_stage
+                EventManager.trigger(game.InGameEvent.BlockInteraction, player, player.meta_data.mining_target, current_stage)
 
     @staticmethod
     def handle_player_chat_message(target: "Player", sender: "Player", message:str, timestamp: int, index: int = 0, salt: int = 0, msg_signature_bytes: bytearray | None = None, filter_type: game.ChatFilterType = game.ChatFilterType.PassThrough, filter_type_bits: int | None = None):
@@ -118,6 +139,21 @@ class OutgoingGameLoopPacketHandler:
         packet.add_varint(player.eid)
         packet.add_text_component(message)
         player.conn.send_mc_packet(packet, network.PlayStatePacketID.CombatDeath.value)
+
+    @staticmethod
+    def handle_set_block_destroy_stage(conn: TCPConnection, mining_player: "Player", location: Position, stage: int):
+        packet = Buffer()
+        packet.add_varint(mining_player.eid)
+        packet.add_position(location)
+        packet.add_unsigned_byte(stage)
+        conn.send_mc_packet(packet, network.PlayStatePacketID.BlockDestruction.value)
+
+    @staticmethod
+    def handle_block_update(conn: TCPConnection, location: Position, block_id: int):
+        packet = Buffer()
+        packet.add_position(location)
+        packet.add_varint(block_id)
+        conn.send_mc_packet(packet, network.PlayStatePacketID.BlockUpdate.value)
 
     @staticmethod
     def handle_disconnect(player: "Player", reason: str):
@@ -183,12 +219,32 @@ class IncomingGameLoopPacketHandler:
         face: int = buf.consume_byte()
         sequence: int = buf.consume_varint()
 
+        stage = 10
+        if status == game.PlayerActionStatus.StartedDigging.value:
+            player.meta_data.mining_target = location
+            player.meta_data.mining_start_time = time.time()
+            player.meta_data.last_broadcasted_stage = -1
+
+        elif status == game.PlayerActionStatus.CancelledDigging.value:
+            stage = 10
+            player.meta_data.mining_target = None
+
+        elif status == game.PlayerActionStatus.FinishedDigging.value:
+            stage = 11
+            player.meta_data.mining_target = None
+        if status in (game.PlayerActionStatus.StartedDigging.value, game.PlayerActionStatus.CancelledDigging.value, game.PlayerActionStatus.FinishedDigging.value):
+            EventManager.trigger(game.InGameEvent.BlockInteraction, player, location, stage)
+            if stage == 11:
+                EventManager.trigger(game.InGameEvent.BlockUpdate, player, location, 0)
+                
+
     @staticmethod
     def _handle_in_game_packet_swing_arm(buf: Buffer, player: "Player"):
         hand: int = buf.consume_varint()
         hand_id = 0 if hand == 0 else 3
         for other_p in PlayersManager.get_ranged_players(player):
-            EventManager.trigger(game.InGameEvent.SwingArm, other_p.conn, player.eid, hand_id)
+            if other_p.game_state.is_loaded:
+                EventManager.trigger(game.InGameEvent.SwingArm, other_p.conn, player.eid, hand_id)
     @staticmethod
     def _handle_in_game_packet_player_command(buf: Buffer, player: "Player"):
         eid: int = buf.consume_varint()
@@ -215,7 +271,8 @@ class IncomingGameLoopPacketHandler:
         player.game_state.current_position.is_on_ground = flags.check(0x01)
         player.game_state.current_position.is_pushing_against_wall = flags.check(0x02)
         for other_p in PlayersManager.get_ranged_players(player, True):
-            EventManager.trigger(game.InGameEvent.PlayerMoved, other_p, player, dx, dy, dz)
+            if other_p.game_state.is_loaded:
+                EventManager.trigger(game.InGameEvent.PlayerMoved, other_p, player, dx, dy, dz)
 
     @staticmethod
     def _handle_in_game_packet_set_player_rotation(buf: Buffer, player: "Player"):
@@ -233,8 +290,9 @@ class IncomingGameLoopPacketHandler:
         angled_pitch = float_to_angle(pitch)
 
         for other_p in PlayersManager.get_ranged_players(player):
-            EventManager.trigger(game.InGameEvent.PlayerRotated, other_p, player, angled_yaw, angled_pitch)
-            EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
+            if other_p.game_state.is_loaded:
+                EventManager.trigger(game.InGameEvent.PlayerRotated, other_p, player, angled_yaw, angled_pitch)
+                EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
 
     @staticmethod
     def _handle_in_game_packet_set_player_position_and_rotation(buf: Buffer, player: "Player"):
@@ -256,8 +314,9 @@ class IncomingGameLoopPacketHandler:
 
         player.game_state.current_position = EntityPosition(x, feet_y, z, yaw, pitch, flags.check(0x01), flags.check(0x02), player.game_state.current_position.dimension, player.game_state.current_position.head_yaw)
         for other_p in PlayersManager.get_ranged_players(player):
-            EventManager.trigger(game.InGameEvent.PlayerMovedAndRotated, other_p, player, dx, dy, dz, angled_yaw, angled_pitch)
-            EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
+            if other_p.game_state.is_loaded:
+                EventManager.trigger(game.InGameEvent.PlayerMovedAndRotated, other_p, player, dx, dy, dz, angled_yaw, angled_pitch)
+                EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
 
     @staticmethod
     def _handle_in_game_packet_player_input(buf: Buffer, player: "Player"):
@@ -283,7 +342,8 @@ class IncomingGameLoopPacketHandler:
         checksum: int = buf.consume_byte()
         Logger.chat(player.username, message)
         for other_p in PlayersManager.get_ranged_players(player, True):
-            EventManager.trigger(game.InGameEvent.ChatMessage, other_p, player, message, timestamp)
+            if other_p.game_state.is_loaded:
+                EventManager.trigger(game.InGameEvent.ChatMessage, other_p, player, message, timestamp)
 
     @staticmethod
     def _handle_in_game_packet_keep_alive_serverbound(buf: Buffer, player: "Player"):
@@ -302,11 +362,13 @@ class IncomingGameLoopPacketHandler:
             EventManager.trigger(game.InGameEvent.PlayerDisconnected, player)
             return False
 
+        OutgoingGameLoopPacketHandler.update_mining_progress(player)
+
         handler = PACKET_HANDLER.get(packet_id)
         if handler:
             handler(buf, player)
         else:
-            #print(f"Unhandled packet: {hex(packet_id)}")
+            Logger.warn(f"Unhandled packet: {hex(packet_id)}")
             pass
 
         return True

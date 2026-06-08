@@ -29,6 +29,8 @@ class PlayStatePacketID(Enum):
     ConfirmTeleportation = 0x00
     SpawnEntity = 0x01
     EntityAnimation = 0x02
+    BlockDestruction = 0x05
+    BlockUpdate = 0x08
     ChatMessage = 0x08
     ChunkBatchReceived = 0x0A
     ChunkBatchFinished = 0x0B

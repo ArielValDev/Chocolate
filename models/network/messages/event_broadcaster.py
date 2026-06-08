@@ -1,4 +1,7 @@
 from typing import TYPE_CHECKING, Callable, Generator
+
+from models.server_interface import ServerInterface
+from models.types.position import Position
 if TYPE_CHECKING:
     from models.player import Player
 from typing import Any
@@ -13,6 +16,12 @@ class PlayersManager:
         for player in get_players_in_range(from_player.server_interface, from_player.game_state.current_position.to_chunk(), config.render_distance):
             if player == from_player and not include_player: continue
             yield player
+
+    @staticmethod
+    def get_ranged_players_pos(server_interface: ServerInterface, position: Position) -> Generator["Player", None, None]:
+        config = server_interface.get_config()
+        for player in get_players_in_range(server_interface, position.to_chunk(), config.render_distance):
+            yield player
     
     @staticmethod
     def get_all_other_players(from_player: "Player", event: InGameEvent, *args: Any) -> Generator["Player", None, None]:
@@ -24,4 +33,5 @@ class PlayersManager:
     @staticmethod
     def send_to_players(players: list["Player"], func: Callable[[Any], None], *args: Any):
         for player in players:
-            func(player.conn, *args)
+            if player.game_state.is_loaded:
+                func(player.conn, *args)

@@ -9,11 +9,13 @@ from models.network.messages.game_loop_packet_handler import OutgoingGameLoopPac
 from models.network.messages.event_broadcaster import PlayersManager
 from models.network.messages.player_packets import handle_player_packet_respawn, handle_player_packet_synchronize_player_position
 from models.types.mc_types import BitField
+from utils.logger import Logger
 
 def subscribe_events():
     EventManager.subscribe(game.InGameEvent.PlayerMoved, OutgoingGameLoopPacketHandler.update_player_chunks)
     EventManager.subscribe(game.InGameEvent.PlayerMoved, OutgoingEntityPacket.handle_packet_update_entity_position)
 
+    #EventManager.subscribe(game.InGameEvent.PlayerMovedAndRotated, OutgoingGameLoopPacketHandler.update_player_chunks)
     EventManager.subscribe(game.InGameEvent.PlayerMovedAndRotated, OutgoingEntityPacket.handle_packet_update_entity_position_and_rotation)
 
     EventManager.subscribe(game.InGameEvent.PlayerRotated, OutgoingEntityPacket.handle_packet_update_entity_rotation)
@@ -43,3 +45,10 @@ def subscribe_events():
     EventManager.subscribe(game.InGameEvent.PlayerRespawn, lambda p, tid: handle_player_packet_respawn(p.conn, game.Dimension.Overworld.value, "minecraft:overworld", 1379429607, p.game_state.gamemode.value, p.game_state.gamemode.value, True, True, False, None, 0, 1, 63, 0))
     EventManager.subscribe(game.InGameEvent.PlayerRespawn, lambda p, tid: handle_player_packet_synchronize_player_position(p.conn, tid, p.game_state.current_position.x, p.game_state.current_position.y, p.game_state.current_position.z, 0, 0, 0, p.game_state.current_position.yaw, p.game_state.current_position.pitch, BitField()))
     EventManager.subscribe(game.InGameEvent.PlayerRespawn, lambda p, tid: OutgoingEntityPacket.handle_packet_set_health(p, 20, 20))
+
+    EventManager.subscribe(game.InGameEvent.BlockInteraction, lambda player, location, stage: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players(player)), OutgoingGameLoopPacketHandler.handle_set_block_destroy_stage, player, location, stage))
+
+    # EventManager.subscribe(game.InGameEvent.BlockUpdate, lambda player, location, block_id: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players(player, True)), OutgoingGameLoopPacketHandler.handle_block_update, location, block_id))
+    EventManager.subscribe(game.InGameEvent.BlockUpdate, lambda player, location, block_id: player.server_interface.get_world().update_block(location, block_id))
+    EventManager.subscribe(game.WorldEvent.BlockChanged, lambda interface, location, block_id: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players_pos(interface, location)), OutgoingGameLoopPacketHandler.handle_block_update, location, block_id))
+    EventManager.subscribe(game.WorldEvent.WorldSaved, lambda: Logger.info("world saved!"))

@@ -303,29 +303,32 @@ class Buffer:
             
     
     def add_position(self, position: Position):
-        pos = position.to_block()
+            pos = position.to_block()
 
-        x = pos.x & 0x3FFFFFF
-        z = pos.z & 0x3FFFFFF
-        y = pos.y & 0xFFF
+            x = pos.x & 0x3FFFFFF  
+            z = pos.z & 0x3FFFFFF  
+            y = pos.y & 0xFFF      
 
-        packed = (x << 38) | (z << 12) | y
-        self.add_long(packed)
-
+            packed = (x << 38) | (z << 12) | y
+            
+            if packed >= (1 << 63):
+                packed -= (1 << 64)
+                
+            self.add_long(packed)
 
     def consume_position(self) -> Position:
         val = self.consume_long()
 
-        x = val >> 38
-        y = (val << 52) >> 52
-        z = (val << 26) >> 38
+        x = (val >> 38) & 0x3FFFFFF
+        z = (val >> 12) & 0x3FFFFFF
+        y = val & 0xFFF
 
         if x >= (1 << 25):
             x -= (1 << 26)
-        if y >= (1 << 11):
-            y -= (1 << 12)
         if z >= (1 << 25):
             z -= (1 << 26)
+        if y >= (1 << 11):
+            y -= (1 << 12)
 
         return Position(x, y, z)
     

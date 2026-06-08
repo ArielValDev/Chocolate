@@ -1,3 +1,5 @@
+import time
+
 from constants import game
 from models.db_manager import DBManager
 from models.network.messages.entity_packets import OutgoingEntityPacket
@@ -18,6 +20,8 @@ def update_others_player_joined(player: "Player"):
     actions.set(game.PlayerAction.UpdateHat.value)
     for other in player.server_interface.get_all_players():
         if other != player:
+            if not other.game_state.is_loaded:
+                time.sleep(3)
             handle_player_packet_player_info_update(other.conn, actions, other.uuid, [player], -1, True, 100, player.username, 1, True) # TODO get real ping
             OutgoingEntityPacket.handle_packet_spawn_entity(other.conn, player.eid, player.uuid, game.EntityType.Player.value, player.game_state.current_position, 0)
 
