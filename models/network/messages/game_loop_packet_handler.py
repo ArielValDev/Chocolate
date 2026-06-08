@@ -180,7 +180,8 @@ class IncomingGameLoopPacketHandler:
             player.game_state.is_dead = False
             tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
             player.meta_data.awaiting_teleport_ids.append(tid)
-            player.game_state.current_position = EntityPosition(8, 1, 8, 0, 0, True, False)
+            y = player.server_interface.get_world().get_height(8, 8) + 1
+            player.game_state.current_position = EntityPosition(8, y, 8, 0, 0, True, False)
             EventManager.trigger(game.InGameEvent.PlayerRespawn, player, tid)
             player.load_world()
             update_others_player_joined(player)

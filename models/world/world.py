@@ -1,3 +1,4 @@
+import random
 import threading
 from typing import TYPE_CHECKING
 
@@ -14,17 +15,38 @@ import os
 from perlin_noise import PerlinNoise
 
 class World:
-    def __init__(self, path: Path, server_interface: "ServerInterface", seed):
+    TERRAIN_SCALE = 200
+    TYPE_SCALE = 300
+
+    def __init__(self, path: Path, server_interface: "ServerInterface", seed: int = random.randint(0, 1000000)):
         self.loaded_regions: dict[tuple[int, int], Region] = {}
         self.root: Path = path
         self.server_interface = server_interface
-        self.noise = PerlinNoise(octaves=4, seed=123)
-    
+        self.land_noise = PerlinNoise(octaves=4, seed=seed)
+        self.detail_noise = PerlinNoise(octaves=4, seed=seed+1)
+        self.mountain_noise = PerlinNoise(octaves=4, seed=seed+2)
+        self.type_noise = PerlinNoise(octaves=4, seed=seed+3)
+        self.revene_noise = PerlinNoise(octaves=2, seed=seed+4)
+
+
+    def get_height(self, x: int, z: int) -> int:
+        height = int((self.land_noise([x / (self.TERRAIN_SCALE*6), z / (self.TERRAIN_SCALE*6)]) + 1) * 32)
+        height2 = int((self.detail_noise([x / self.TERRAIN_SCALE, z / self.TERRAIN_SCALE]) + 1) * 3)
+        terrain_type = abs(self.type_noise([ x / self.TYPE_SCALE, z / self.TYPE_SCALE]))
+        mountain = self.mountain_noise([x / self.TERRAIN_SCALE ,z / self.TERRAIN_SCALE])
+        height3 = int(abs(mountain) * 80 * terrain_type)
+
+        height += height2 + height3
+        return height
+
     def _generate_chunk(self, chunk_pos: Position) -> Chunk:
         chunk = Chunk(chunk_pos)
-        for y in range(-64, 0):
-            for x in range(16):
-                for z in range(16):
+        for x in range(16):
+            for z in range(16):
+                block_x = chunk_pos.x * 16 + x
+                block_z = chunk_pos.z * 16 + z
+                height = self.get_height(block_x, block_z)
+                for y in range(-64, height):
                     chunk.set_block(Position(x, y, z))
         return chunk
 
@@ -63,17 +85,13 @@ class World:
         return chunk
 
     def set_block(self, pos: Position):
-        print(f"Placed block at {pos}")
         chunk = self.load_chunk(pos.to_chunk())
         chunk.set_block(Position(*pos.chunk_local()))
         EventManager.trigger(WorldEvent.BlockChanged, self.server_interface, pos, 1)
 
     def clear_block(self, pos: Position):
-        print(f"Broken block at {pos}")
         chunk = self.load_chunk(pos.to_chunk())
         chunk.clear_block(Position(*pos.chunk_local()))
-        with open(self.root/f"SAVE.CHUNK.BLOCK.BROKEN.{pos.x}.{pos.y}.{pos.z}", 'wb') as f:
-            f.write(chunk.to_raw())
         EventManager.trigger(WorldEvent.BlockChanged, self.server_interface, pos, 0)
 
     def update_block(self, pos: Position, block_id: int):
@@ -84,7 +102,8 @@ class World:
         for region in self.loaded_regions.values():
             region.save_file(str(self.root/f"r.{region.position.x}.{region.position.z}.chc"))
         EventManager.trigger(WorldEvent.WorldSaved)
-        print(self.server_interface.is_running())
         if self.server_interface.is_running():
             threading.Timer(constants.SAVE_INTERVAL, self.save).start()
 
+
+    

@@ -73,8 +73,5 @@ class Region:
         with gzip.open(path, "wb") as f:
             f.write(buffer.getvalue())
 
-        print(f"Saved region ({self.position.x}, {self.position.z}) with {non_airs} non-air blocks")
-
-            
 
 
