@@ -24,14 +24,15 @@ class PlayersManager:
             yield player
     
     @staticmethod
-    def get_all_other_players(from_player: "Player", event: InGameEvent, *args: Any) -> Generator["Player", None, None]:
-        if event in EventManager.event_callbacks:
-            for player in from_player.server_interface.get_all_players():
-                if player != from_player:
-                    yield player
+    def get_all_other_players(from_player: "Player", include_player: bool = False) -> Generator["Player", None, None]:
+        for player in from_player.server_interface.get_all_players():
+            if player == from_player and not include_player: continue
+            yield player
 
     @staticmethod
     def send_to_players(players: list["Player"], func: Callable[[Any], None], *args: Any):
         for player in players:
             if player.game_state.is_loaded:
                 func(player.conn, *args)
+
+    

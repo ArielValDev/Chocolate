@@ -1,6 +1,7 @@
 from enum import Enum
 
-TIME_TO_MINE = 0.2 # 0.9
+TIME_TO_MINE = 0.9
+SEED = 1379429
 
 class TeleportFlag(Enum):
     RelativeX = 0x0001

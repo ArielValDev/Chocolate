@@ -1,8 +1,6 @@
 import time
 from typing import TYPE_CHECKING
 
-from numpy import block
-
 from constants.constants import GeneratorIDs
 from models.network.messages.entity_packets import IncomingEntityPacket
 from utils.id_generator import IDGenerator
@@ -271,7 +269,7 @@ class IncomingGameLoopPacketHandler:
         player.game_state.current_position.x = x
         player.game_state.current_position.is_on_ground = flags.check(0x01)
         player.game_state.current_position.is_pushing_against_wall = flags.check(0x02)
-        for other_p in PlayersManager.get_ranged_players(player, True):
+        for other_p in PlayersManager.get_all_other_players(player, True):
             if other_p.game_state.is_loaded:
                 EventManager.trigger(game.InGameEvent.PlayerMoved, other_p, player, dx, dy, dz)
 
@@ -289,8 +287,9 @@ class IncomingGameLoopPacketHandler:
 
         angled_yaw = float_to_angle(yaw)
         angled_pitch = float_to_angle(pitch)
+        player.game_state.current_position.head_yaw = angled_yaw
 
-        for other_p in PlayersManager.get_ranged_players(player):
+        for other_p in PlayersManager.get_all_other_players(player):
             if other_p.game_state.is_loaded:
                 EventManager.trigger(game.InGameEvent.PlayerRotated, other_p, player, angled_yaw, angled_pitch)
                 EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
@@ -313,8 +312,8 @@ class IncomingGameLoopPacketHandler:
         angled_yaw = float_to_angle(yaw)
         angled_pitch = float_to_angle(pitch)
 
-        player.game_state.current_position = EntityPosition(x, feet_y, z, yaw, pitch, flags.check(0x01), flags.check(0x02), player.game_state.current_position.dimension, player.game_state.current_position.head_yaw)
-        for other_p in PlayersManager.get_ranged_players(player):
+        player.game_state.current_position = EntityPosition(x, feet_y, z, yaw, pitch, flags.check(0x01), flags.check(0x02), player.game_state.current_position.dimension, angled_yaw)
+        for other_p in PlayersManager.get_all_other_players(player):
             if other_p.game_state.is_loaded:
                 EventManager.trigger(game.InGameEvent.PlayerMovedAndRotated, other_p, player, dx, dy, dz, angled_yaw, angled_pitch)
                 EventManager.trigger(game.InGameEvent.PlayerHeadRotated, other_p, player, angled_yaw)
@@ -341,8 +340,11 @@ class IncomingGameLoopPacketHandler:
         ack: BitField = BitField()
         ack.set(int.from_bytes(buf.consume_raw(3)))
         checksum: int = buf.consume_byte()
+        if not message.isascii(): return
+
         Logger.chat(player.username, message)
-        for other_p in PlayersManager.get_ranged_players(player, True):
+
+        for other_p in player.server_interface.get_all_players():
             if other_p.game_state.is_loaded:
                 EventManager.trigger(game.InGameEvent.ChatMessage, other_p, player, message, timestamp)
 

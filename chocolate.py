@@ -38,7 +38,7 @@ class ChocolateServer:
             get_world = lambda: self.world,
             is_running = lambda: self.is_running
         )
-        self.world = World(Path("./" + constants.ROOT + "/world"), self.communicator)
+        self.world = World(Path("./" + constants.ROOT + "/world"), self.communicator, game.SEED)
 
     
     def init(self):
@@ -68,16 +68,16 @@ class ChocolateServer:
 
 
     def handle_player(self, player: Player):
-        #try:
+        try:
             player.connect_to_world_v2()
             #EventManager.trigger(game.InGameEvent.PlayerConnected, player)
             Logger.info(f"{player.username} joined the world!")
             player.load_world()
-        #except:
-            # Logger.error("Failed to load player. Please try again...")
-            # player.disconnect_player()
-            # return
-            player.game_loop()
+        except:
+            Logger.error("Failed to load player. Please try again...")
+            player.disconnect_player()
+            return
+        player.game_loop()
 
     def start(self):
         Logger.info(f"Starting server on address {constants.IP}:{self.config.port}...")

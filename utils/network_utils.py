@@ -48,8 +48,11 @@ def fetch_version_client():
     client_jar_response = requests.get(client_jar_url)
     client_jar_response.raise_for_status()
 
-    with open("client.jar", "wb") as f:
-        f.write(client_jar_response.content)
+    try:
+        with open("client.jar", "wb") as f:
+            f.write(client_jar_response.content)
+    except:
+        Exception("Could not open client jar, run the server again")
 
 def fetch_registries_into_file():
     registries: dict[str, list[str]] = {}

@@ -1,4 +1,5 @@
 from constants.constants import LOG_LEVEL
+from datetime import datetime
 import queue
 
 class Logger:
@@ -12,7 +13,6 @@ class Logger:
 
     @staticmethod
     def get_time() -> str:
-        from datetime import datetime
         return "\x1b[90m<" + datetime.now().strftime("%H:%M:%S") + ">"
 
     @staticmethod
@@ -43,4 +43,4 @@ class Logger:
 
     @staticmethod
     def chat(sender: str, message: str):
-        Logger.gui_queue.put(f"{Logger.get_time()} CHAT:{sender}:{message}")
+        Logger.gui_queue.put(f"CHAT:{sender}:{message}")

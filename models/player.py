@@ -65,22 +65,17 @@ class Player:
     def connect_to_world_v2(self):
         from models.network.messages.login_packets_v2 import process_login_phase
 
-        # 1. הפעלת לולאת הרשת הדינמית - נשארת כאן עד שהשחקן במצב Play
         success = process_login_phase(self)
         if not success:
             self.disconnect_player()
             return
 
-        # 2. אם הגענו לכאן, השחקן רשמית ב-Play State!
         exists = DBManager.load_player_data(self)
 
-        # שולחים את הפאקט הראשי של ההתחברות לעולם
-        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429607, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
+        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
 
-        # עדכון חיים ראשוני
         OutgoingEntityPacket.handle_packet_set_health(self, self.game_state.health, self.game_state.food)
 
-        # עדכון שחקנים ב-TAB (Player Info)
         actions = BitField()
         actions.set(PlayerAction.AddPlayer.value)
         actions.set(PlayerAction.UpdateGameMode.value)
@@ -91,8 +86,6 @@ class Player:
         actions.set(PlayerAction.UpdateHat.value)
         handle_player_packet_player_info_update(self.conn, actions, self.uuid, self.server_interface.get_all_players(), self.game_state.gamemode.value, True, 100, self.username, 1, True)
 
-        # שולחים את מיקום השחקן (Teleport), **בלי להיתקע ולחכות לאישור שלו!**
-        # הלולאה הרגילה ב-game_loop תקלוט את ה-ConfirmTeleportation כשהוא יגיע!
         tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
         self.meta_data.awaiting_teleport_ids.append(tid)
         handle_player_packet_synchronize_player_position(self.conn, tid, self.game_state.current_position.x, self.game_state.current_position.y, self.game_state.current_position.z, 0, 0, 0, self.game_state.current_position.yaw, self.game_state.current_position.pitch, BitField())
@@ -135,7 +128,7 @@ class Player:
         handle_login_packet_ack_finish_configuration(self.conn, self.connection_state)
 
         self.connection_state = ConnectionState.Play
-        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429607, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
+        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
 
         tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
         self.meta_data.awaiting_teleport_ids.append(tid)
