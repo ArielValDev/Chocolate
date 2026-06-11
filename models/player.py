@@ -58,7 +58,7 @@ class Player:
         self.game_state = game_state
         self.keep_alive_thread = None
 
-    def connect_to_world_v2(self):
+    def connect_to_world(self):
         from models.network.messages.login_packets import process_login_phase
 
         success = process_login_phase(self)

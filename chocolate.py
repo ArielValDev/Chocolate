@@ -74,7 +74,7 @@ class ChocolateServer:
 
     def handle_player(self, player: Player):
         try:
-            player.connect_to_world_v2()
+            player.connect_to_world()
             Logger.info(f"{player.username} joined the world!")
             player.load_world()
         except:
