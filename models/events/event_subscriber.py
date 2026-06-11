@@ -1,9 +1,5 @@
-from sched import Event
-
 from constants import game
-from models import server_interface
 from models.events.event_manager import EventManager
-from models.game.world import get_players_in_range
 from models.network.messages.entity_packets import OutgoingEntityPacket
 from models.network.messages.game_loop_packet_handler import OutgoingGameLoopPacketHandler
 from models.network.messages.event_broadcaster import PlayersManager

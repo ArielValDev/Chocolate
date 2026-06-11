@@ -72,6 +72,3 @@ class Region:
 
         with gzip.open(path, "wb") as f:
             f.write(buffer.getvalue())
-
-
-

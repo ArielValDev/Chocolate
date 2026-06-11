@@ -1,17 +1,15 @@
-import math
 from typing import TYPE_CHECKING
+from constants.game import BLOCK_KIND
 from models.buffer import Buffer
 if TYPE_CHECKING:
     from models.player import Player
-from models.types.mc_types import BitField
 from models.types.position import Position, PositionType
 from models.server_interface import ServerInterface
-
 
 def get_chunk_data_and_update_light_bytes_at(position: Position, server_interface: ServerInterface) -> Buffer:
     world = server_interface.get_world()
     chunk = world.load_chunk(position.to_chunk())
-    return chunk.to_buf(9) # very green grass
+    return chunk.to_buf(BLOCK_KIND) # very green grass
 
 
 def get_chunk_positions_in_range(center: Position, view_distance: int) -> list[Position]:

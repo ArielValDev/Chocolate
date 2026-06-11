@@ -3,7 +3,6 @@ from models.types.mc_types import BitField
 from models.types.position import Position
 from models.world.section import Section
 
-
 class Chunk:
     MIN_SECTION_Y = -4
 

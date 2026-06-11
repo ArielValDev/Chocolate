@@ -1,7 +1,6 @@
 import random
 import threading
 from typing import TYPE_CHECKING
-
 from constants import constants
 if TYPE_CHECKING:
     from models.server_interface import ServerInterface
@@ -12,7 +11,7 @@ from models.types.position import Position, PositionType
 from models.world.chunk import Chunk
 from models.world.region import Region
 import os
-from perlin_noise import PerlinNoise
+from perlin_noise import PerlinNoise # type: ignore
 
 class World:
     TERRAIN_SCALE = 200
@@ -104,6 +103,3 @@ class World:
         EventManager.trigger(WorldEvent.WorldSaved)
         if self.server_interface.is_running():
             threading.Timer(constants.SAVE_INTERVAL, self.save).start()
-
-
-    

@@ -3,11 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from models.buffer import Buffer
 
-
 MAX_QUANTIZED_VALUE = 32766.0
 LPVEC3_ZERO_THRESHOLD = 1.0 / MAX_QUANTIZED_VALUE
 LPVEC3_ABS_LIMIT = 1.7179869183e10
-
 
 def _clamp(value: float, lo: float, hi: float) -> float:
     if value < lo:
@@ -16,7 +14,6 @@ def _clamp(value: float, lo: float, hi: float) -> float:
         return hi
     return value
 
-
 def _sanitize_lpvec3_component(value: float) -> float:
     if math.isnan(value):
         return 0.0
@@ -24,10 +21,8 @@ def _sanitize_lpvec3_component(value: float) -> float:
         return math.copysign(LPVEC3_ABS_LIMIT, value)
     return _clamp(value, -LPVEC3_ABS_LIMIT, LPVEC3_ABS_LIMIT)
 
-
 def _java_round_non_negative(value: float) -> int:
     return int(math.floor(value + 0.5))
-
 
 def _pack_normalized_component(value: float) -> int:
     value = _clamp(value, -1.0, 1.0)
@@ -36,7 +31,6 @@ def _pack_normalized_component(value: float) -> int:
 
 def _unpack_normalized_component(value: int) -> float:
     return min(value & 0x7FFF, int(MAX_QUANTIZED_VALUE)) * 2.0 / MAX_QUANTIZED_VALUE - 1.0
-
 
 def read_lpvec3(buffer: "Buffer") -> tuple[float, float, float]:
     byte1 = buffer.consume_unsigned_byte()
@@ -59,7 +53,6 @@ def read_lpvec3(buffer: "Buffer") -> tuple[float, float, float]:
     z = _unpack_normalized_component(packed >> 33) * scale_factor_f
 
     return x, y, z
-
 
 def write_lpvec3(buffer: "Buffer", vec3: tuple[float, float, float]) -> None:
     x = _sanitize_lpvec3_component(vec3[0])

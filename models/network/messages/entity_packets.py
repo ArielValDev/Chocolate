@@ -1,4 +1,3 @@
-import time
 from typing import TYPE_CHECKING
 from constants.constants import *
 from constants.game import *
@@ -151,14 +150,14 @@ class IncomingEntityPacket:
         eid: int = buf.consume_varint()
         type: int = buf.consume_varint()
         if type == InteractType.InteractAt.value:
-            target_x: float = buf.consume_float()
-            target_y: float = buf.consume_float()
-            target_z: float = buf.consume_float()
+            target_x: float = buf.consume_float() # type: ignore
+            target_y: float = buf.consume_float() # type: ignore
+            target_z: float = buf.consume_float() # type: ignore
         
         if type == InteractType.Interact.value or type == InteractType.InteractAt.value:
-            hand: int = buf.consume_varint()
+            hand: int = buf.consume_varint() # type: ignore
         
-        sneak_key_pressed: bool = buf.consume_boolean()
+        sneak_key_pressed: bool = buf.consume_boolean() # type: ignore
 
 
         if type == InteractType.Attack.value:

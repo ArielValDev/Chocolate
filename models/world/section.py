@@ -1,9 +1,8 @@
 import math
-
+from constants.game import BLOCK_KIND
 from models.buffer import Buffer
 from models.types.mc_types import BitField
 from models.types.position import Position
-
 
 class Section:
     def __init__(self, block_mask: BitField | None = None):
@@ -22,7 +21,7 @@ class Section:
         section.add_unsigned_byte(bpe)
         section.add_varint(2)  # palette length
         section.add_varint(0)  # air
-        section.add_varint(9)  # very green grass
+        section.add_varint(BLOCK_KIND)  # very green grass
 
         # 4096 entries / 16 entries per long = 256 longs
         for _ in range(256):
@@ -34,7 +33,6 @@ class Section:
 
         return section
         
-
     def set_block(self, rel_pos: Position):
         index = rel_pos.to_index()
         self.block_mask.set_index(index)

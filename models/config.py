@@ -1,7 +1,6 @@
 import json
 import os
 from typing import Any
-
 from utils.logger import Logger
 
 class ServerConfig:

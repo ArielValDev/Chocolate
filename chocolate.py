@@ -11,7 +11,7 @@ from models.events.event_manager import EventManager
 from models.player import OfflineState, Player, PlayerGameState
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
-from models.types.position import EntityPosition, Position, PositionType
+from models.types.position import EntityPosition, Position
 from models.world.world import World
 from utils.client_parser import get_tags_into_file
 from utils.id_generator import IDGenerator

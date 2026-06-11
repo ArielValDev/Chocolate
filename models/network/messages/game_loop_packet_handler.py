@@ -1,6 +1,5 @@
 import time
 from typing import TYPE_CHECKING
-
 from constants.constants import GeneratorIDs
 from models.network.messages.entity_packets import IncomingEntityPacket
 from utils.id_generator import IDGenerator

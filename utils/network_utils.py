@@ -87,4 +87,3 @@ def fetch_registries_into_file():
 
     with open("constants/registry_data.json", "w", encoding="utf-8") as f:
         json.dump(registries, f)
-

@@ -95,7 +95,6 @@ class Player:
         handle_player_packet_game_event(self.conn, game.GameEvent.StartWaitingForLevelChunks.value, 0)
         handle_player_packet_set_ticking_state(self.conn, 20.0, False)
         handle_player_packet_step_tick(self.conn, 0)
-        # self.game_state.last_logout_position
         OutgoingGameLoopPacketHandler.set_center_chunk(self.conn, center)
 
         day_time = self.server_interface.get_day_time()
@@ -117,7 +116,6 @@ class Player:
         OutgoingGameLoopPacketHandler.chunk_batch_finished(self.conn, c)
         self.game_state.is_loaded = True
         # handle_player_packet_chunk_batch_received(self.conn, self.connection_state)
-
         # handle_player_packet_player_loaded(self.conn, self.connection_state)
 
     def _schedule_keep_alive(self):
@@ -155,4 +153,3 @@ class Player:
 
     def __hash__(self) -> int:
         return hash(self.eid)
-        

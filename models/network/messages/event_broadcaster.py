@@ -1,12 +1,9 @@
 from typing import TYPE_CHECKING, Callable, Generator
-
 from models.server_interface import ServerInterface
 from models.types.position import Position
 if TYPE_CHECKING:
     from models.player import Player
 from typing import Any
-from constants.game import InGameEvent
-from models.events.event_manager import EventManager
 from models.game.world import get_players_in_range
 
 class PlayersManager:

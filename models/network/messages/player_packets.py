@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from models.game.world import get_chunk_data_and_update_light_bytes_at
@@ -28,7 +27,7 @@ def debug_recieve(conn: TCPConnection):
     Incomming
     """
     packet_id, buf = conn.recv_mc_packet()
-    Logger.debug(packet_id, buf.get_bytes())
+    Logger.debug(packet_id, buf.get_bytes()) # type: ignore
 
 def handle_player_packet_ping(conn: TCPConnection, id: int):
     """
@@ -188,7 +187,7 @@ def handle_player_packet_chunk_batch_received(conn: TCPConnection, state: networ
     if packet_id != network.PlayStatePacketID.ChunkBatchReceived.value or state != network.ConnectionState.Play:
         raise ConnectionError(f"Unexpected packet ID {packet_id} or state for chunk batch recieve")
 
-    return data.consume_float()
+    return data.consume_float() # type: ignore
 
 def handle_player_packet_keep_alive_clientbound(conn: TCPConnection, id: int):
     """

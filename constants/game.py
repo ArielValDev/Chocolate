@@ -2,6 +2,7 @@ from enum import Enum
 
 TIME_TO_MINE = 0.9
 SEED = 1379429
+BLOCK_KIND = 9 # very green grass
 
 class TeleportFlag(Enum):
     RelativeX = 0x0001

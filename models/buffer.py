@@ -6,7 +6,6 @@ from utils.lpvec3 import *
 from uuid import UUID
 import struct
 
-
 class Buffer:
     def __init__(self, bytearray_: bytearray | None = None):
         if bytearray_ is None: bytearray_ = bytearray()

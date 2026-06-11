@@ -1,6 +1,4 @@
 import json
-from typing import Any
-from dataclasses import dataclass
 from constants import network
 from constants import constants
 from models.network.tcp_connection import TCPConnection
@@ -175,9 +173,7 @@ class IncomingLoginPacketHandler:
     @staticmethod
     def handle_login_ack(buf: Buffer, player: "Player"):
         player.connection_state = network.ConnectionState.Configuration
-        from models.network.messages import login_packets
         handle_login_packet_clientbound_known_packs(player.conn)
-        #client_known_packs = login_packets.handle_login_packet_serverbound_known_packs(player.conn, player.connection_state) # type: ignore
         handle_login_packet_registry_data(player.conn)
         handle_login_packet_update_tags(player.conn)
         handle_login_packet_finish_configuration(player.conn)

@@ -3,7 +3,6 @@ from copy import copy
 import math
 from constants.game import Dimension
 
-
 class PositionType(Enum):
     Block = 0
     Chunk = 1

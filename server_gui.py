@@ -1,12 +1,8 @@
-from re import L
 import tkinter as tk
-from tkinter import Tk, scrolledtext, messagebox
+from tkinter import Tk, scrolledtext
 import threading
-import json, queue
-
+import queue
 from constants import constants
-from constants.game import InGameEvent
-from models.events.event_manager import EventManager
 from chocolate import ChocolateServer
 from utils.logger import Logger
 

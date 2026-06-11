@@ -44,8 +44,6 @@ def get_named_tags():
     
     return expand_tags(tags)
             
-
-
 def get_tags_into_file():
     named_tags = get_named_tags()
     with open(constants.REGISTRIES_FILE, 'r') as file:
