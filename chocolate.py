@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from constants import constants
 from constants import game
@@ -47,6 +48,10 @@ class ChocolateServer:
         fetch_registries_into_file()
         get_tags_into_file()
 
+        if not os.path.exists("./server_files/"):
+            os.mkdir("./server_files/")
+            os.mkdir("./server_files/world")
+
         Logger.info("Creating databases...")
         DBManager.init()
 
@@ -70,7 +75,6 @@ class ChocolateServer:
     def handle_player(self, player: Player):
         try:
             player.connect_to_world_v2()
-            #EventManager.trigger(game.InGameEvent.PlayerConnected, player)
             Logger.info(f"{player.username} joined the world!")
             player.load_world()
         except:

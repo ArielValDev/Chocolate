@@ -44,7 +44,6 @@ def subscribe_events():
 
     EventManager.subscribe(game.InGameEvent.BlockInteraction, lambda player, location, stage: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players(player)), OutgoingGameLoopPacketHandler.handle_set_block_destroy_stage, player, location, stage))
 
-    # EventManager.subscribe(game.InGameEvent.BlockUpdate, lambda player, location, block_id: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players(player, True)), OutgoingGameLoopPacketHandler.handle_block_update, location, block_id))
     EventManager.subscribe(game.InGameEvent.BlockUpdate, lambda player, location, block_id: player.server_interface.get_world().update_block(location, block_id))
     EventManager.subscribe(game.WorldEvent.BlockChanged, lambda interface, location, block_id: PlayersManager.send_to_players(list(PlayersManager.get_ranged_players_pos(interface, location)), OutgoingGameLoopPacketHandler.handle_block_update, location, block_id))
     EventManager.subscribe(game.WorldEvent.WorldSaved, lambda: Logger.info("world saved!"))

@@ -20,7 +20,7 @@ def update_others_player_joined(player: "Player"):
         if other != player:
             if not other.game_state.is_loaded:
                 time.sleep(3)
-            handle_player_packet_player_info_update(other.conn, actions, other.uuid, [player], -1, True, 100, player.username, 1, True) # TODO get real ping
+            handle_player_packet_player_info_update(other.conn, actions, other.uuid, [player], -1, True, 100, player.username, 1, True)
             OutgoingEntityPacket.handle_packet_spawn_entity(other.conn, player.eid, player.uuid, game.EntityType.Player.value, player.game_state.current_position, 0)
 
 def update_joined_player_others_exist(player: "Player"):

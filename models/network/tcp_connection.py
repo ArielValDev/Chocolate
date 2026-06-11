@@ -33,7 +33,7 @@ class TCPConnection:
             try:
                 self.socket.sendall(msg)
             except (ConnectionAbortedError, ConnectionResetError, OSError):
-                #Logger.warn(f"Connection aborted while trying to send to {self.addr[0]}")
+                Logger.warn(f"Connection aborted while trying to send to {self.addr[0]}")
                 pass
 
     def _recv(self, size: int) -> bytes:

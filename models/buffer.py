@@ -188,7 +188,7 @@ class Buffer:
             to_return.append(curr)
             curr_len = len(curr)
             non_flat_length -= 1
-            flat_length -= (curr_len + len(to_varint(curr_len))) # TODO: Find better solution
+            flat_length -= (curr_len + len(to_varint(curr_len)))
         
         return to_return
 

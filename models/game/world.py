@@ -9,7 +9,7 @@ from models.server_interface import ServerInterface
 def get_chunk_data_and_update_light_bytes_at(position: Position, server_interface: ServerInterface) -> Buffer:
     world = server_interface.get_world()
     chunk = world.load_chunk(position.to_chunk())
-    return chunk.to_buf(BLOCK_KIND) # very green grass
+    return chunk.to_buf(BLOCK_KIND)
 
 
 def get_chunk_positions_in_range(center: Position, view_distance: int) -> list[Position]:

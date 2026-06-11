@@ -5,7 +5,7 @@ from models.db_manager import DBManager
 from models.network.messages.entity_packets import OutgoingEntityPacket
 from models.network.messages.game_loop_packet_handler import OutgoingGameLoopPacketHandler
 from models.network.messages.game_loop_packet_handler import *
-from models.network.messages.login_packets_v2 import *
+from models.network.messages.login_packets import *
 from models.network.messages.player_packets import *
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
@@ -55,11 +55,11 @@ class Player:
         self.uuid: UUID = UUID(int = 0)
         self.eid = IDGenerator.get_id(GeneratorIDs.EntityID)
         self.meta_data: PlayerMetaData = PlayerMetaData()
-        self.game_state = game_state # TODO should get the game mode from the server (the server gets the game mode from the config file)
+        self.game_state = game_state
         self.keep_alive_thread = None
 
     def connect_to_world_v2(self):
-        from models.network.messages.login_packets_v2 import process_login_phase
+        from models.network.messages.login_packets import process_login_phase
 
         success = process_login_phase(self)
         if not success:
