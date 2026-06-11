@@ -1,11 +1,9 @@
 from uuid import UUID
 from models.types.mc_types import OptionalString
 from models.types.position import Position
-from utils.logger import Logger
 from utils.protocol_type_utils import *
 from utils.lpvec3 import *
 from uuid import UUID
-from amulet_nbt import StringTag
 import struct
 
 

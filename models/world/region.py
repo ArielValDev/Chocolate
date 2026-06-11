@@ -63,12 +63,12 @@ class Region:
 
             offset = buffer.tell()
             header_index = (local_z * 32 + local_x) * 4
-            header[header_index:header_index + 4] = offset.to_bytes(4, "big")
+            header[header_index:header_index + 4] = offset.to_bytes(4)
 
             buffer.write(chunk.to_raw())
 
-            buffer.seek(0)
-            buffer.write(header)
+        buffer.seek(0)
+        buffer.write(header)
 
         with gzip.open(path, "wb") as f:
             f.write(buffer.getvalue())

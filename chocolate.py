@@ -104,11 +104,14 @@ class ChocolateServer:
             self.players.remove(player)
             
     def save_and_shutdown(self):
+        Logger.info("Saving players before shutting down...")
         for player in self.players:
             DBManager.save_player(player)
             EventManager.trigger(game.InGameEvent.ServerShutdown, player, "Server closed")
 
-        Logger.info("Saving players before shutting down...")
+        Logger.info("Saving world before shutting down...")
+        self.world.save()
+
         try:
             self.serv.shutdown(socket.SHUT_RDWR)
         except OSError:

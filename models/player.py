@@ -1,5 +1,3 @@
-import time
-from uuid import UUID, uuid4
 from constants.constants import GeneratorIDs
 from constants.game import Gamemode, PlayerAction
 from constants.network import ConnectionState
@@ -7,16 +5,14 @@ from models.db_manager import DBManager
 from models.network.messages.entity_packets import OutgoingEntityPacket
 from models.network.messages.game_loop_packet_handler import OutgoingGameLoopPacketHandler
 from models.network.messages.game_loop_packet_handler import *
-from models.network.messages.login_packets import *
+from models.network.messages.login_packets_v2 import *
 from models.network.messages.player_packets import *
 from models.network.tcp_connection import TCPConnection
 from models.server_interface import ServerInterface
-from models.encryption_manager import EncryptionManager
 from models.types.position import EntityPosition, Position
 from utils.id_generator import IDGenerator
 from utils.logger import Logger
 from utils.player import update_joined_player_others_exist, update_others_player_joined
-from utils.protocol_type_utils import to_varint
 from dataclasses import dataclass, field
 import threading
 
@@ -72,6 +68,7 @@ class Player:
 
         exists = DBManager.load_player_data(self)
 
+        
         handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
 
         OutgoingEntityPacket.handle_packet_set_health(self, self.game_state.health, self.game_state.food)
@@ -92,62 +89,6 @@ class Player:
 
         if not exists: 
             DBManager.save_player(self)
-
-    def connect_to_world(self):
-        handle_login_packet_handshake(self.conn, self.connection_state)
-        
-        self.connection_state = ConnectionState.Login
-
-        user_data = handle_login_packet_login(self.conn, self.connection_state)
-        self.username = user_data.username
-        self.uuid = user_data.uuid
-        exists = DBManager.load_player_data(self)
-
-        # public_key = EncryptionManager.public_key_bytes
-        # verify_token = EncryptionManager.generate_verify_token()
-        # handle_login_packet_encryption_request(self.conn, public_key, verify_token, False)
-        # encryption_response = handle_login_packet_encryption_response(self.conn, self.connection_state)
-        # self.conn.enable_encryption(EncryptionManager.decrypt_shared_secret(encryption_response.shared_secret))
-
-        handle_login_packet_login_success(self.conn, self.uuid, self.username)
-        handle_login_packet_login_ack(self.conn, self.connection_state)
-
-        self.connection_state = ConnectionState.Configuration
-
-        _ = handle_login_packet_plugin_message(self.conn, self.connection_state)
-        client_inforamtion = handle_login_packet_client_information(self.conn, self.connection_state) # type: ignore
-
-        handle_login_packet_clientbound_known_packs(self.conn)
-        client_known_packs = handle_login_packet_serverbound_known_packs(self.conn, self.connection_state) # type: ignore
-
-        #if not same_known_packs(client_known_packs):
-        handle_login_packet_registry_data(self.conn)
-        handle_login_packet_update_tags(self.conn)
-
-        handle_login_packet_finish_configuration(self.conn)
-        handle_login_packet_ack_finish_configuration(self.conn, self.connection_state)
-
-        self.connection_state = ConnectionState.Play
-        handle_login_packet_login_play(self.conn, self.eid, False, 2, 10, 4, False, True, False, "minecraft:overworld", 1379429, self.game_state.gamemode.value, -1, False, True, True, "minecraft:overworld", 0, 1, 63, False)
-
-        tid = IDGenerator.get_id(GeneratorIDs.TeleportID)
-        self.meta_data.awaiting_teleport_ids.append(tid)
-        handle_player_packet_synchronize_player_position(self.conn, tid, self.game_state.current_position.x, self.game_state.current_position.y, self.game_state.current_position.z, 0, 0, 0, self.game_state.current_position.yaw, self.game_state.current_position.pitch, BitField())
-
-        handle_player_packet_confirm_teleportation(self.conn, self.connection_state, self.meta_data.awaiting_teleport_ids)
-        handle_player_packet_set_player_position_and_rotation(self.conn, self.connection_state)
-
-        actions = BitField()
-        actions.set(PlayerAction.AddPlayer.value)
-        actions.set(PlayerAction.UpdateGameMode.value)
-        actions.set(PlayerAction.UpdateListed.value)
-        actions.set(PlayerAction.UpdateLatency.value)
-        actions.set(PlayerAction.UpdateDisplayName.value)
-        actions.set(PlayerAction.UpdateListPriority.value)
-        actions.set(PlayerAction.UpdateHat.value)
-        handle_player_packet_player_info_update(self.conn, actions, self.uuid, self.server_interface.get_all_players(), self.game_state.gamemode.value, True, 100, self.username, 1, True) # TODO get real ping of a player
-        OutgoingEntityPacket.handle_packet_set_health(self, self.game_state.health, self.game_state.food)
-        if not exists: DBManager.save_player(self)
     
     def load_world(self):
         center = Position(0, 0, 0)
@@ -163,10 +104,11 @@ class Player:
 
         OutgoingGameLoopPacketHandler.chunk_batch_start(self.conn)
         c=0
+        pos = self.game_state.current_position
         for cx in range(-3, 4):  # -2, -1, 0, 1, 2
             for cz in range(-3, 4):
                 c += 1
-                chunk = Position(cx * 16, 0, cz * 16).to_chunk()
+                chunk = Position(cx * 16 + int(pos.x), 0, cz * 16 + int(pos.z)).to_chunk()
                 self.meta_data.loaded_chunks.append(chunk)
                 handle_player_packet_chunk_data_and_update_light(
                     self,
@@ -180,7 +122,7 @@ class Player:
 
     def _schedule_keep_alive(self):
         def _execute():
-            keep_alive_id: int = IDGenerator.get_id(constants.GeneratorIDs.KeepAliveID)
+            keep_alive_id: int = IDGenerator.get_id(GeneratorIDs.KeepAliveID)
             if self.meta_data.awaiting_keep_alive_id is not None : self.disconnect_player()
             self.meta_data.awaiting_keep_alive_id = keep_alive_id
             handle_player_packet_keep_alive_clientbound(self.conn, keep_alive_id)
