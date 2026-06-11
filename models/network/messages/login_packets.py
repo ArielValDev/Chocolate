@@ -183,6 +183,9 @@ class IncomingLoginPacketHandler:
     def handle_client_information(buf: Buffer, player: "Player"):
         buf.consume_string()
         player.game_state.render_distance = buf.consume_varint()
+        if player.game_state.render_distance > 5:
+            Logger.warn(f"{player.username} entered with a render distance thats too high ({player.game_state.render_distance})! resetting to 5.")
+            player.game_state.render_distance = 5
 
     @staticmethod
     def handle_plugin_message(buf: Buffer, player: "Player"):
